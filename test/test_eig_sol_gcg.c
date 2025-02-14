@@ -1,6 +1,6 @@
 /**
  *    @file  test_eig_sol.c
- *   @brief  ÌØÕ÷ÖµÇó½âÆ÷²âÊÔ
+ *   @brief  æµ‹è¯•GCGç‰¹å¾å€¼æ±‚è§£å™¨
  *
  *  PASE and GCGE
  *
@@ -22,18 +22,18 @@
 
 #define DEBUG   0
 
-/* flag == 0 ±íÊ¾²»Ê¹ÓÃÍâ²¿¶àÏòÁ¿ÏßÐÔÇó½âÆ÷ 
- * flag == 1 ±íÊ¾½öÊ¹ÓÃÍâ²¿¶àÏòÁ¿ÏßÐÔÇó½âÆ÷ 
- * flag == 2 ±íÊ¾ÒÔÍâ²¿¶àÏòÁ¿ÏßÐÔÇó½âÆ÷ÎªÔ¤Ìõ¼þ×Ó */
+/* flag == 0 è¡¨ç¤ºä¸ä½¿ç”¨å¤–éƒ¨å¤šå‘é‡çº¿æ€§æ±‚è§£å™¨ 
+ * flag == 1 è¡¨ç¤ºä»…ä½¿ç”¨å¤–éƒ¨å¤šå‘é‡çº¿æ€§æ±‚è§£å™¨ 
+ * flag == 2 è¡¨ç¤ºä»¥å¤–éƒ¨å¤šå‘é‡çº¿æ€§æ±‚è§£å™¨ä¸ºé¢„æ¡ä»¶å­ */
 int TestEigenSolverGCG(void *A, void *B, int flag, int argc, char *argv[], struct OPS_ *ops) 
 {
-	/* Õ¹Ê¾Ëã·¨µ÷ÓÃ²ÎÊý */
-	/* ÓÃ»§Ï£ÍûÊÕÁ²µÄÌØÕ÷¶Ô¸öÊý nevConv, ×î¶à·µ»Ø nevMax 
-	 * ÒªÇó block_size >= multiMax */ 
+	/* å±•ç¤ºç®—æ³•è°ƒç”¨å‚æ•° */
+	/* ç”¨æˆ·å¸Œæœ›æ”¶æ•›çš„ç‰¹å¾å¯¹ä¸ªæ•° nevConv, æœ€å¤šè¿”å›ž nevMax 
+	 * è¦æ±‚ block_size >= multiMax */ 
 	int nevConv  = 30, multiMax = 1; double gapMin = 1e-5;
 	int nevGiven = 0, block_size = nevConv/5, nevMax = 2*nevConv;
-	/* µ±ÌØÕ÷ÖµÊÕÁ² 2*block_size Ê±, ½« P W ²¿·Ö¹éÈë X ²¿·Ö, 
-	 * ¹¤×÷¿Õ¼äÖÐµÄ X ²»³¬¹ý nevInit (>=3*block_size) */
+	/* å½“ç‰¹å¾å€¼æ”¶æ•› 2*block_size æ—¶, å°† P W éƒ¨åˆ†å½’å…¥ X éƒ¨åˆ†, 
+	 * å·¥ä½œç©ºé—´ä¸­çš„ X ä¸è¶…è¿‡ nevInit (>=3*block_size) */
 	//int nevInit = 3*block_size; 
 	int nevInit = nevMax;
 
@@ -44,18 +44,18 @@ int TestEigenSolverGCG(void *A, void *B, int flag, int argc, char *argv[], struc
 	ops->GetOptionFromCommandLine("-blockSize",'i',&block_size,argc,argv,ops);
 	nevInit = nevMax;
 	ops->GetOptionFromCommandLine("-nevInit"  ,'i',&nevInit   ,argc,argv,ops);
-	/* ¹¤×÷¿Õ¼äÓÉ nevMax blockSize nevInit ¾ö¶¨ */ 
+	/* å·¥ä½œç©ºé—´ç”± nevMax blockSize nevInit å†³å®š */ 
 	nevInit = nevInit<nevMax?nevInit:nevMax;
 	int max_iter_gcg = 500; double tol_gcg[2] = {1e-1,1e-8};
-	/* ÌØÕ÷Öµ ÌØÕ÷ÏòÁ¿ ³¤¶ÈÎª nevMax */
+	/* ç‰¹å¾å€¼ ç‰¹å¾å‘é‡ é•¿åº¦ä¸º nevMax */
 	double *eval; void **evec;
 	eval = malloc(nevMax*sizeof(double));
 	memset(eval,0,nevMax*sizeof(double));
 	ops->MultiVecCreateByMat(&evec,nevMax,A,ops);
 	ops->MultiVecSetRandomValue(evec,0,nevMax,ops);
-	/* ÏÂÊö²¿·Ö½«±»È«·â´æÔÚ EigenSolverCreateWorkspace_GCG */
+	/* ä¸‹è¿°éƒ¨åˆ†å°†è¢«å…¨å°å­˜åœ¨ EigenSolverCreateWorkspace_GCG */
 	void **gcg_mv_ws[4]; double *dbl_ws; int *int_ws;
-	/* Éè¶¨ GCG µÄ¹¤×÷¿Õ¼ä nevMax+2*block_size, 
+	/* è®¾å®š GCG çš„å·¥ä½œç©ºé—´ nevMax+2*block_size, 
 	 * block_size, block_size, block_size */
 	ops->MultiVecCreateByMat(&gcg_mv_ws[0],nevMax+2*block_size,A,ops);				
 	ops->MultiVecSetRandomValue(gcg_mv_ws[0],0,nevMax+2*block_size,ops);
@@ -75,7 +75,7 @@ int TestEigenSolverGCG(void *A, void *B, int flag, int argc, char *argv[], struc
 	memset(dbl_ws,0,length_dbl_ws*sizeof(double));
 	int_ws = malloc(length_int_ws*sizeof(int));
 	memset(int_ws,0,length_int_ws*sizeof(int));
-	/* ÉÏÊö²¿·Ö½«±»È«·â´æÔÚ EigenSolverCreateWorkspace_GCG */
+	/* ä¸Šè¿°éƒ¨åˆ†å°†è¢«å…¨å°å­˜åœ¨ EigenSolverCreateWorkspace_GCG */
 
 	ops->Printf("mat A:\n");
 	//ops->MatView(A,ops);
@@ -90,11 +90,11 @@ int TestEigenSolverGCG(void *A, void *B, int flag, int argc, char *argv[], struc
 		
 	ops->Printf("===============================================\n");
 	ops->Printf("GCG Eigen Solver\n");
-	/* Éè¶¨ ops ÖÐµÄÌØÕ÷ÖµÇó½âÆ÷ÊÇ GCG */
+	/* è®¾å®š ops ä¸­çš„ç‰¹å¾å€¼æ±‚è§£å™¨æ˜¯ GCG */
 	EigenSolverSetup_GCG(multiMax,gapMin,nevInit,nevMax,block_size,
 		tol_gcg,max_iter_gcg,flag,gcg_mv_ws,dbl_ws,int_ws,ops);
 	
-	/* Õ¹Ê¾Ëã·¨ËùÓÐ²ÎÊý */
+	/* å±•ç¤ºç®—æ³•æ‰€æœ‰å‚æ•° */
 	int    check_conv_max_num    = 50   ;
 		
 	char   initX_orth_method[8]  = "mgs"; 
@@ -115,7 +115,7 @@ int TestEigenSolverGCG(void *A, void *B, int flag, int argc, char *argv[], struc
 	double compRR_tol            = 2*DBL_EPSILON;
 	//double compRR_tol            = 0.0  ; 
 			
-	/* Éè¶¨ GCG µÄËã·¨²ÎÊý */
+	/* è®¾å®š GCG çš„ç®—æ³•å‚æ•° */
 	EigenSolverSetParameters_GCG(
 			check_conv_max_num   ,
 			initX_orth_method    , initX_orth_block_size, 
@@ -130,8 +130,8 @@ int TestEigenSolverGCG(void *A, void *B, int flag, int argc, char *argv[], struc
 			compRR_tol           ,  
 			ops);		
 
-	/* ÃüÁîÐÐ»ñÈ¡ GCG µÄËã·¨²ÎÊý ÎðÓÃ ÓÐ BUG, 
-	 * ²»Ó¦¸Ã¸Ä±ä nevMax nevInit block_size, ÕâÐ©Óë¹¤×÷¿Õ¼äÓÐ¹Ø */
+	/* å‘½ä»¤è¡ŒèŽ·å– GCG çš„ç®—æ³•å‚æ•° å‹¿ç”¨ æœ‰ BUG, 
+	 * ä¸åº”è¯¥æ”¹å˜ nevMax nevInit block_size, è¿™äº›ä¸Žå·¥ä½œç©ºé—´æœ‰å…³ */
 	EigenSolverSetParametersFromCommandLine_GCG(argc,argv,ops);
 	ops->Printf("nevGiven = %d, nevConv = %d, nevMax = %d, block_size = %d, nevInit = %d\n",
 			nevGiven,nevConv,nevMax,block_size,nevInit);
@@ -143,13 +143,13 @@ int TestEigenSolverGCG(void *A, void *B, int flag, int argc, char *argv[], struc
 	time_interval = ops->GetWtime() - time_start;
 	ops->Printf("Time is %.3f\n", time_interval);
 
-	/* ÏÂÊö²¿·Ö½«±»È«·â´æÔÚ EigenSolverDestroyWorkspace_GCG */
+	/* ä¸‹è¿°éƒ¨åˆ†å°†è¢«å…¨å°å­˜åœ¨ EigenSolverDestroyWorkspace_GCG */
 	ops->MultiVecDestroy(&gcg_mv_ws[0],nevMax+2*block_size,ops);
 	ops->MultiVecDestroy(&gcg_mv_ws[1],block_size,ops);
 	ops->MultiVecDestroy(&gcg_mv_ws[2],block_size,ops);
 	ops->MultiVecDestroy(&gcg_mv_ws[3],block_size,ops);
 	free(dbl_ws); free(int_ws);
-	/* ÉÏÊö²¿·Ö½«±»È«·â´æÔÚ EigenSolverDestroyWorkspace_GCG */
+	/* ä¸Šè¿°éƒ¨åˆ†å°†è¢«å…¨å°å­˜åœ¨ EigenSolverDestroyWorkspace_GCG */
 
 #if 1
 	ops->Printf("eigenvalues\n");

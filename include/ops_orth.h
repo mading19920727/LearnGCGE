@@ -1,4 +1,10 @@
-
+/**
+ * @file ops_orth.h
+ * @brief 实现了向量正交化方法，包括MGS和BGS
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #ifndef  _OPS_ORTH_H_
 #define  _OPS_ORTH_H_
 

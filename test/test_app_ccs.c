@@ -1,6 +1,6 @@
 /**
  *    @file  test_app_ccs.c
- *   @brief  test app of CCS 
+ *   @brief  测试CCS格式的矩阵和向量操作
  *
  *
  *  @author  Yu Li, liyu@tjufe.edu.cn

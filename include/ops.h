@@ -1,4 +1,10 @@
-
+/**
+ * @file ops.h
+ * @brief 核心操作接口和基本数据结构
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #ifndef  _OPS_H_
 #define  _OPS_H_
 

@@ -1,4 +1,10 @@
-
+/**
+ * @file ops_multi_grid.c
+ * @brief 实现了多网格方法
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include	<stdio.h>
 #include	<stdlib.h>
 #include    <math.h>

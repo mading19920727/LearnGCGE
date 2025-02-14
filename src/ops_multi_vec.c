@@ -1,4 +1,10 @@
-
+/**
+ * @file ops_multi_vec.c
+ * @brief 实现了多向量操作，包括创建、销毁、线性组合等
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>

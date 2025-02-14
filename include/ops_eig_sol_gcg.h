@@ -1,4 +1,10 @@
-
+/**
+ * @file ops_eig_sol_gcg.h
+ * @brief 广义特征值问题的GCG求解器
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #ifndef  _OPS_EIG_SOL_GCG_H_
 #define  _OPS_EIG_SOL_GCG_H_
 

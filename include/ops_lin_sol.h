@@ -2,7 +2,7 @@
  *    @file  ops_lin_sol.h
  *   @brief  operations for linear solver 
  *
- *  线性求解器
+ *  瀹炵幇浜嗙嚎鎬ф眰瑙ｅ櫒锛屽寘鎷琍CG鍜孉MG
  *
  *  @author  Yu Li, liyu@tjufe.edu.cn
  *
