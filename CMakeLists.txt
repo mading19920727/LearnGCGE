@@ -40,7 +40,6 @@ add_library(GCGE SHARED
 target_link_libraries(GCGE
     PUBLIC
         openblas
-        umfpack
 )
 
 set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared/lib)

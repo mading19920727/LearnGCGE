@@ -12,7 +12,7 @@
 #define  OPS_USE_PHG       0
 #define  OPS_USE_PETSC     0
 #define  OPS_USE_SLEPC     0
-#define  OPS_USE_UMFPACK   1
+#define  OPS_USE_UMFPACK   0
 
 #define  PRINT_RANK    0
 
