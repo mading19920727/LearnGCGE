@@ -1,3 +1,8 @@
+/**
+ * @brief MTX格式文件读取工具
+ * 
+ */
+
 #ifndef _MMIO_HIGHLEVEL_
 #define _MMIO_HIGHLEVEL_
 
@@ -12,6 +17,15 @@
 #define MAT_VAL_TYPE VALUE_TYPE
 #endif
 #include "mmio.h"
+
+/**
+ * @brief 计算输入数组的独占前缀和
+ * 在 CSR 格式中，它将每行的非零元素数量转换为每行的起始位置
+ * csrRowPtr_counter 数组存储了每行的非零元素数量，经过独占前缀和操作后，csrRowPtr_counter 数组将存储每行在 CSR 格式中的行指针
+ * 
+ * @param input 输入数组，存储每行的非零元素数量
+ * @param length 数组的长度
+ */
 void exclusive_scan(MAT_PTR_TYPE* input, int length)
 {
     if (length == 0 || length == 1) return;
@@ -61,16 +75,30 @@ int read_mtx_header(char* filename, int* isComplex)
     return 0;
 }
 
+/**
+ * @brief 一个函数读取MTX文件，返回CSR格式的稀疏矩阵
+ * 
+ * @param m 矩阵行数
+ * @param n 矩阵列数
+ * @param nnz 非零元梳数量
+ * @param isSymmetric 是否对称
+ * @param base 索引起始值：0或1
+ * @param csrRowPtr 稀疏矩阵行指针
+ * @param csrColIdx 稀疏矩阵列指针
+ * @param csrVal 稀疏矩阵值数组指针
+ * @param filename MTX文件
+ * @return int 返回值
+ */
 int mmio_allinone(int* m, int* n, int* nnz, int* isSymmetric, int* base, int** csrRowPtr, int** csrColIdx, MAT_VAL_TYPE** csrVal, char* filename)
 {
     int          m_tmp, n_tmp;
     MAT_PTR_TYPE nnz_tmp;
 
     int         ret_code;
-    MM_typecode matcode;
+    MM_typecode matcode; // MTX文件信息
     FILE*       f;
 
-    MAT_PTR_TYPE nnz_mtx_report;
+    MAT_PTR_TYPE nnz_mtx_report; // mtx文件中非零元个数
     int          isInteger = 0, isReal = 0, isPattern = 0, isSymmetric_tmp = 0, isComplex = 0;
 
     // load matrix
@@ -110,9 +138,11 @@ int mmio_allinone(int* m, int* n, int* nnz, int* isSymmetric, int* base, int** c
         printf("input matrix is symmetric = false\n");
     }
 
+    // 初始化每行的非零元素数量数组
     MAT_PTR_TYPE* csrRowPtr_counter = (MAT_PTR_TYPE*)malloc((m_tmp + 1) * sizeof(MAT_PTR_TYPE));
     memset(csrRowPtr_counter, 0, (m_tmp + 1) * sizeof(MAT_PTR_TYPE));
 
+    // 行索引数组、列索引数组、MTX中存储的非零元素数组
     int*          csrRowIdx_tmp = (int*)malloc(nnz_mtx_report * sizeof(int));
     int*          csrColIdx_tmp = (int*)malloc(nnz_mtx_report * sizeof(int));
     MAT_VAL_TYPE* csrVal_tmp    = (MAT_VAL_TYPE*)malloc(nnz_mtx_report * sizeof(MAT_VAL_TYPE));
@@ -121,6 +151,7 @@ int mmio_allinone(int* m, int* n, int* nnz, int* isSymmetric, int* base, int** c
     /*   specifier as in "%lg", "%lf", "%le", otherwise errors will occur */
     /*  (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)            */
 
+    // 读取MTX文件中的非零元素
     for (MAT_PTR_TYPE i = 0; i < nnz_mtx_report; i++) {
         int    idxi, idxj;
         double fval, fval_im;
@@ -151,17 +182,21 @@ int mmio_allinone(int* m, int* n, int* nnz, int* isSymmetric, int* base, int** c
 
     if (f != stdin) fclose(f);
 
+    // 若是对称，MTX文件只包含一半元素，因此csrRowPtr_counter需要增加一倍
     if (isSymmetric_tmp) {
         for (MAT_PTR_TYPE i = 0; i < nnz_mtx_report; i++) {
             if (csrRowIdx_tmp[i] != csrColIdx_tmp[i]) csrRowPtr_counter[csrColIdx_tmp[i]]++;
         }
     }
-    // exclusive scan for csrRowPtr_counter
+    // 将每行的非零元素数量转换为每行的起始位置
     exclusive_scan(csrRowPtr_counter, m_tmp + 1);
-
+    // 非零元素每行的起始位置数组初始化
     MAT_PTR_TYPE* csrRowPtr_alias = (MAT_PTR_TYPE*)malloc((m_tmp + 1) * sizeof(MAT_PTR_TYPE));
+    // 非零元个数
     nnz_tmp                       = csrRowPtr_counter[m_tmp];
+    // 非零元素位置数组
     int*          csrColIdx_alias = (int*)malloc(nnz_tmp * sizeof(int));
+     // 非零元数组
     MAT_VAL_TYPE* csrVal_alias    = (MAT_VAL_TYPE*)malloc(nnz_tmp * sizeof(MAT_VAL_TYPE));
 
     memcpy(csrRowPtr_alias, csrRowPtr_counter, (m_tmp + 1) * sizeof(MAT_PTR_TYPE));
@@ -170,16 +205,22 @@ int mmio_allinone(int* m, int* n, int* nnz, int* isSymmetric, int* base, int** c
     if (isSymmetric_tmp) {
         for (MAT_PTR_TYPE i = 0; i < nnz_mtx_report; i++) {
             if (csrRowIdx_tmp[i] != csrColIdx_tmp[i]) {
+                // csrRowPtr_alias[csrRowIdx_tmp[i]] 是第 csrRowIdx_tmp[i] 行的起始位置
+                // csrRowPtr_counter[csrRowIdx_tmp[i]] 是当前行已经存储的非零元素数量
+                // offset 是当前非零元素在 csrColIdx_alias 和 csrVal_alias 数组中的存储位置
                 MAT_PTR_TYPE offset     = csrRowPtr_alias[csrRowIdx_tmp[i]] + csrRowPtr_counter[csrRowIdx_tmp[i]];
                 csrColIdx_alias[offset] = csrColIdx_tmp[i];
                 csrVal_alias[offset]    = csrVal_tmp[i];
                 csrRowPtr_counter[csrRowIdx_tmp[i]]++;
 
+                // csrRowPtr_alias[csrColIdx_tmp[i]] 是第 csrColIdx_tmp[i] 行的起始位置
+                // 计算对称元素的偏移量
                 offset                  = csrRowPtr_alias[csrColIdx_tmp[i]] + csrRowPtr_counter[csrColIdx_tmp[i]];
                 csrColIdx_alias[offset] = csrRowIdx_tmp[i];
                 csrVal_alias[offset]    = csrVal_tmp[i];
                 csrRowPtr_counter[csrColIdx_tmp[i]]++;
             } else {
+                // 对角线元素直接填写
                 MAT_PTR_TYPE offset     = csrRowPtr_alias[csrRowIdx_tmp[i]] + csrRowPtr_counter[csrRowIdx_tmp[i]];
                 csrColIdx_alias[offset] = csrColIdx_tmp[i];
                 csrVal_alias[offset]    = csrVal_tmp[i];
@@ -187,6 +228,7 @@ int mmio_allinone(int* m, int* n, int* nnz, int* isSymmetric, int* base, int** c
             }
         }
     } else {
+        // 非对称矩阵直接填写
         for (MAT_PTR_TYPE i = 0; i < nnz_mtx_report; i++) {
             MAT_PTR_TYPE offset     = csrRowPtr_alias[csrRowIdx_tmp[i]] + csrRowPtr_counter[csrRowIdx_tmp[i]];
             csrColIdx_alias[offset] = csrColIdx_tmp[i];
