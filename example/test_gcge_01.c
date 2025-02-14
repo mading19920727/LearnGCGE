@@ -298,6 +298,7 @@ static int DestroyMatrixCCS(CCSMAT *ccs_matA)
 
 int main(int argc, char *argv[]) 
 {
+    printf("start!!!!!!!!!!!!!!!!!!!!!");
 	TestAppCCS(argc, argv);
    	return 0;
 }
