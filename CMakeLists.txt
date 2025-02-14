@@ -14,7 +14,7 @@ endif()
 
 # include
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/config/)
-include(linux_mpicc)
+# include(linux_mpicc)
 
 # src
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/app SRC_APP)
