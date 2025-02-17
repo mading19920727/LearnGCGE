@@ -104,9 +104,9 @@ int TestAppCCS(int argc, char *argv[])
    //TestOrth(matA,ops);
    /* The following three fucntions can not be test for PASMAT */
    //TestLinearSolver(matA,ops);
-   /* flag == 0 ��ʾ��ʹ���ⲿ���������������
-    * flag == 1 ��ʾ��ʹ���ⲿ���������������
-    * flag == 2 ��ʾ���ⲿ���������������ΪԤ������ */
+   /* flag == 0 表示不使用外部多向量线性求解器
+    * flag == 1 表示仅使用外部多向量线性求解器
+    * flag == 2 表示以外部多向量线性求解器为预条件子 */
    int flag = 0;
 #if OPS_USE_UMFPACK 
    AppCtx user; flag = 1;

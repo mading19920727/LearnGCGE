@@ -84,8 +84,13 @@ static void MatDotMultiVecShift(void **x, void **y,
 }
 
 
-
-
+// 随机初始化X
+// Input: 
+// 		B 矩阵
+//		nevGiven 已给的近似特征向量个数
+//		ritz_vec 已给的近似特征向量
+// Output: 
+// 		V 矩阵X部分已完成随机初始化
 static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven)
 {
 #if TIME_GCG
@@ -103,6 +108,7 @@ static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven)
 		sizeX,nevGiven,gcg_solver->initX_orth_method);
 	/* orth_dbl_ws begin from the end of ss_eval */
 	double *orth_dbl_ws = gcg_solver->dbl_ws+gcg_solver->nevMax+2*gcg_solver->block_size;
+	// 配置多向量正交化方法
 	if (0 == strcmp("mgs", gcg_solver->initX_orth_method))
 			MultiVecOrthSetup_ModifiedGramSchmidt(
 				gcg_solver->initX_orth_block_size,
@@ -124,12 +130,15 @@ static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven)
 				gcg_solver->initX_orth_zero_tol,
 				//ritz_vec,gcg_solver->dbl_ws,ops_gcg);
 				ritz_vec,orth_dbl_ws,ops_gcg);
-
+	
+	// 对V的前nevGiven列进行B-正交化
 	ops_gcg->MultiVecOrth(V,0,&nevGiven,B,ops_gcg);
+	// MultiVecSetRandomValue(void **x, int start, int end, struct OPS_ *ops)
 	ops_gcg->MultiVecSetRandomValue(V,nevGiven,sizeX,ops_gcg);
+	// 从nevGiven列开始对V进行B-正交化
 	ops_gcg->MultiVecOrth(V,nevGiven,&endX,B,ops_gcg);
 	assert(endX==sizeX);
-	/* ���������, ��֤�� sizeX ���������� */
+	/* 多次正交化, 保证有 sizeX 个正交向量 */
 	//int pre_endX;	
 	//while (endX < sizeX) {
 	//	ops_gcg->MultiVecSetRandomValue(V,endX,sizeX,ops_gcg);
@@ -144,6 +153,13 @@ static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven)
 #endif
 	return;
 }
+
+// X = V C 将子空间基底下的特征向量转换为原空间基底下的特征向量 
+// Input: 
+// 		V 矩阵
+//		ritz_vec Rayleigh-Ritz求得的特征向量 C
+// Output: 
+// 		ss_evec 原空间基底下的近似特征向量
 static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec)
 {
 #if TIME_GCG
@@ -180,6 +196,8 @@ static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec)
 #endif
 	return;
 }
+
+
 static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
 	int numCheck, double *tol, int *offset)
 {
@@ -301,6 +319,8 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
 	assert(offset[0]>0); 
 	return nevConv;
 }
+
+
 static void ComputeP(void **V, double *ss_evec, int *offset)
 {
 #if TIME_GCG
@@ -443,6 +463,8 @@ static void ComputeP(void **V, double *ss_evec, int *offset)
 #endif	
 	return;	
 }
+
+
 static void ComputeX(void **V, void **ritz_vec)
 {
 #if TIME_GCG
@@ -457,6 +479,8 @@ static void ComputeX(void **V, void **ritz_vec)
 #endif
 	return;
 }
+
+
 static void ComputeW(void **V, void *A, void *B,
 	double *ss_eval, void **ritz_vec, int *offset)
 {
@@ -909,6 +933,14 @@ if (sigma!=0.0 && B!=NULL && ops_gcg->MatAxpby==NULL) {
 	return;
 }
 
+// 调用 Rayleigh-Ritz过程 求解子空间投影问题： V^H A V C = V^H B V C \Lambda
+// Input: 
+// 		A 矩阵, V 矩阵
+//		nevConv 需要收敛的特征值个数
+//		tol 求解小规模特征值问题的阈值参数
+// Output: 
+//		ss_matA 矩阵V^HAV, ss_diag 矩阵ss_matA对角部分 
+//		ss_eval 特征值, ss_evec 特征向量 
 static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_evec, double tol,
 		int nevConv, double *ss_diag, void *A, void **V)
 {
@@ -921,7 +953,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 	ops_gcg->Printf("PtAP sizeP = %d\n", sizeP);
 #endif
 	if (sizeP>0) {
-		/* ���� PtAP ���� */
+		/* 计算 P^H A P 部分 */
 		nrows  = sizeP      ; ncols  = sizeP      ;
 		nrowsA = sizeV-sizeC; ncolsA = sizeV-sizeC;
 		/* C = alpha*op(Q)*op(A)*op(P) + beta*C */
@@ -943,7 +975,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 	sizeN  = endN - startN; 
 	sizeC  = nevConv;
 
-	/* ���� ss_mat ss_evec */
+	/* 更新 ss_mat ss_evec */
 	ss_matA = ss_diag+(sizeV-sizeC);
 	ss_evec = ss_matA+(sizeV-sizeC)*(sizeV-sizeC); 
 	
@@ -955,15 +987,15 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
     time_gcg.rr_matW_time -= ops_gcg->GetWtime();
 #endif
 	if (sizeW>0) {
-		/* ���� VtAW ���� */
+		/* 计算 V^H A W 部分 */
 		start[0] = startN; end[0] = endW;
 		start[1] = startW; end[1] = endW;
 		destin = ss_matA+(sizeV-sizeC)*(sizeX+sizeP-sizeC);
-		/* (endW-startN)*(endW-startW) �� double 
-		 *               (endW-startW) �� ���� */
+		/* (endW-startN)*(endW-startW) 个 double 
+		 *               (endW-startW) 个 向量 */
 		ops_gcg->MultiVecQtAP('S','N',V,A,V,0,start,end,destin,sizeV-sizeC,
 				mv_ws[0],ops_gcg);
-		/* �Գƻ� */
+		/* 对称化 */
 		length = sizeX+sizeP-sizeC;
 		source = ss_matA+(sizeV-sizeC)*(sizeX+sizeP-sizeC); incx = 1; 
 		destin = ss_matA+(sizeX+sizeP-sizeC); incy = sizeV-sizeC;
@@ -997,19 +1029,19 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 		}	
 	}
 	else {
-		/* ���� X P ����, ���� C ���� */
+		/* 置零 X P 部分, 忽略 C 部分 */
 		length = sizeX+sizeP-sizeC;
 		destin = ss_matA;
 		for (idx = 0; idx < length; ++idx) {
 			memset(destin,0,length*sizeof(double));
 			destin += sizeV-sizeC;
 		}
-		/* ��ֵ X ���ֵĶԽ��� */
+		/* 赋值 X 部分的对角线 */
 		length = sizeX-sizeC;
 		source = ss_eval+sizeC; incx = 1              ; 
 		destin = ss_matA      ; incy = (sizeV-sizeC)+1;
 		dcopy(&length,source,&incx,destin,&incy);
-		/* ���� PtAP ����*/
+		/* 更新 P^H A P 部分*/
 		length = sizeP;
 		source = dbl_ws                                           ; incx = 1; 
 		destin = ss_matA+(sizeV-sizeC)*(sizeX-sizeC)+(sizeX-sizeC); incy = 1;
@@ -1019,13 +1051,13 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 		}
 	}
 	
-	/* ��¼�Խ��߲��� */
+	/* 记录对角线部分 */
 	length = sizeV-sizeC;
 	source = ss_matA; incx = (sizeV-sizeC)+1; 
 	destin = ss_diag; incy = 1              ;
 	dcopy(&length,source,&incx,destin,&incy);
 	
-	/* �� ss_matA ���� shift */
+	/* 对 ss_matA 进行 shift */
 	if (gcg_solver->compW_cg_shift != 0.0) {
 		alpha = 1.0;
 		length = sizeV-sizeC;
@@ -1039,21 +1071,21 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 	ops_gcg->Printf("ss_diag:\n");
 	for (idx = 0; idx < length; ++idx) ops_gcg->Printf("%f\n",destin[idx]);
 #endif	
-	/* ����С��ģ����ֵ���� */
+	/* 计算小规模特征值问题 */
 	char   JOBZ, RANGE, UPLO; 
 	int    LDA, M, LDZ, INFO, N, LWORK, *IWORK, *IFAIL; 
 	double ABSTOL, *AA, *W, *Z, *WORK;
 	JOBZ   = 'V'        ; RANGE  = 'A'; UPLO  = 'U'        ;
 	LDA    = sizeV-sizeC; ABSTOL = tol; LDZ   = sizeV-sizeC; 
 	IWORK  = int_ws; INFO   = 0  ;
-	/* ���ټ��� C ���� */
+	/* 不再计算 C 部分 */
 	N      = sizeV-sizeC; M = N;
 	IFAIL  = int_ws+5*N; 
 	AA     = ss_matA;
 	W      = ss_eval+sizeC; 
 	Z      = ss_evec; 
 	WORK   = Z+LDZ*N;
-	/* ss_diag ss_matA ss_evec ʣ�µĿռ� */
+	/* ss_diag ss_matA ss_evec 剩下的空间 */
 	LWORK  = gcg_solver->length_dbl_ws-(WORK - gcg_solver->dbl_ws); 
 
 #if DEBUG
@@ -1069,24 +1101,28 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 
 
 #if OPS_USE_MPI
+	/* 当 PAS 调用 GCG 时, 且使用并行怎么办? 
+	 * 没关系, PAS 需要保证每个进程都有特征向量 
+	 * 同时, 这样的分批计算, 不仅仅是效率的提升
+	 * 更重要的是, 保证, 每个进程的特征向量完全一致 */
 	int *displs;
 	int sendcount, *recvcounts;
 	double *recvbuf;
 	int IL, IU; int rank, nproc;
 
-	/* ÿ�ж�һ��, ������ֵ��������, ����ͨѶ */
+	/* 每列多一行, 将特征值拷贝至此, 进行通讯 */
 	LDZ  = LDZ+1;
-	/* �������������� C �Ĳ��� */
+	/* 特征向量不包含 C 的部分 */
 	Z    = ss_evec;	
-	/* ���ù����ռ� */ 
+	/* 重置工作空间 */  
 	WORK = Z+LDZ*N; LWORK = LWORK-N;
 	
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &nproc);
-	/* ��������ֵ */
+	/* 分类特征值 */
 	destin = ss_eval+sizeC;
 	length = N;
-	/* ÿ������10�� */
+	/* 分类特征值 */
 	if (gcg_solver->compRR_min_num <= 0) {
 	   gcg_solver->compRR_min_num = N/(nproc+2)>10?N/(nproc+2):10;
 	}
@@ -1107,7 +1143,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 	/* 1 <= IL <= IU <= N */
 	IL = displs[rank]+1; IU = displs[rank+1]  ;
 	M  = IU-IL+1;
-	/* ��ͬ���� W Z ��ͬ */
+	/* 不同进程 W Z 不同 */
 	W += displs[rank]  ; Z += LDZ*displs[rank];	
 
 #if TIME_GCG
@@ -1118,7 +1154,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 #if DEBUG
 		ops_gcg->Printf("dsyevx: N   = %d, M  = %d, LDA = %d, IL = %d, IU  = %d, LDZ = %d\n", 
 		      N, M, LDA, IL, IU, LDZ);
-#endif
+#endif	
 		dsyevx(&JOBZ,&RANGE,&UPLO,&N,AA,&LDA,
 				NULL,NULL,&IL,&IU,&ABSTOL,&M,
 				W,Z,&LDZ,WORK,&LWORK,IWORK,IFAIL,&INFO);
@@ -1129,7 +1165,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
     	time_gcg.dsyevx_time += ops_gcg->GetWtime();
 	//ops_gcg->Printf("dsyevx = %.2f\n",time_gcg.dsyevx_time);
 #endif
-	/* ������õ�������ֵ���Ƶ� Z �����һ�� */
+	/* 将计算得到的特征值复制到 Z 的最后一行 */
 	length  = sendcount;
 	source  = W      ; incx    = 1  ;
 	destin  = Z+LDZ-1; incy    = LDZ;
@@ -1140,7 +1176,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 		recvcounts[idx] *= LDZ;
 		displs[idx+1]   *= LDZ;
 	}
-	/* ȫ�ۼ�������, ���ͺͽ��ն����������� */
+	/* 全聚集特征对, 发送和接收都是连续数据 */
 
 #if DEBUG
 	ops_gcg->Printf("before allgaterv sendcount = %d\n", sendcount);
@@ -1151,19 +1187,19 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 	ops_gcg->Printf("after  allgaterv sendcount = %d\n", sendcount);
 #endif
 	free(displs);
-	/* �� Z �����һ�и��Ƹ�����ֵ */
+	/* 将 Z 的最后一行复制给特征值 */
 	length = N;
 	source = ss_evec+LDZ-1; incx = LDZ;
 	destin = ss_eval+sizeC; incy = 1  ;
 	dcopy(&length,source,&incx,destin,&incy);
-	/* �ƶ��������� */
+	/* 移动特征向量 */
 #if DEBUG
 	ops_gcg->Printf("before memmove length = %d\n", length);
 #endif
 	length = N; destin = ss_evec; source = ss_evec; 
 	for (idx = 0; idx < N; ++idx) {
-		/* ��֤ source �ڱ�����֮ǰ
-		 * ���ص�������ֽڿ����� destin �� */
+		/* 保证 source 在被覆盖之前
+		 * 将重叠区域的字节拷贝到 destin 中 */
 		memmove(destin,source,length*sizeof(double));
 		destin += N; source += LDZ;
 	}
@@ -1180,7 +1216,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 #if TIME_GCG
     time_gcg.dsyevx_time -= ops_gcg->GetWtime();
 #endif
-	/* ��֤ ss_evec ��������һ�� */
+	/* 保证 ss_evec 是正交归一的 */
 	dsyevx(&JOBZ,&RANGE,&UPLO,&N,AA,&LDA,
 			NULL,NULL,NULL,NULL,&ABSTOL,&M,
 			W,Z,&LDZ,WORK,&LWORK,IWORK,IFAIL,&INFO);
@@ -1195,13 +1231,13 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 
 #endif
 
-	/* �ָ�ss_matA�Խ��߲��� */
+	/* 恢复ss_matA对角线部分 */
 	length = sizeV-sizeC;
 	source = ss_diag; incx = 1              ;
 	destin = ss_matA; incy = (sizeV-sizeC)+1;
 	dcopy(&length,source,&incx,destin,&incy);
 
-	/* �ظ�����ֵ W */
+	/* 恢复特征值 W */
 	if (gcg_solver->compW_cg_shift != 0.0) {
 		alpha  = -1.0;
 		length = sizeV-sizeC;
@@ -1233,10 +1269,20 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 #endif
 	return;
 }
+
+// 调用 GCG Eigensolver 求解代数特征值问题： Ax = \lambda Bx
+// Input: 
+// 		A 矩阵, B 矩阵
+//		nevGiven nevConv
+// 		ops 上下文
+// Output: 
+// 		eval 特征值， evec 特征向量
 static void GCG(void *A, void *B, double *eval, void **evec,
 		int nevGiven, int *nevConv, struct OPS_ *ops)
 {	
 #if 1
+	/* offsetW[0] 表示有多少个块, 
+	 * offsetW[1] <= idx < offsetW[2] 是未收敛的编号 */ 
 	int *offsetP, *offsetW, *ptr_tmp;
 	gcg_solver = (GCGSolver*)ops->eigen_solver_workspace;
 	gcg_solver->A = A; gcg_solver->B = B; 
@@ -1253,15 +1299,21 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	nevMax     = gcg_solver->nevMax    ; 
 	block_size = gcg_solver->block_size; 
 	multiMax   = gcg_solver->multiMax  ; 
+	/*  工作空间基于 nevInit nevMax block_size 分配 */
 	assert(nevInit >= nevGiven);
 	assert(nevInit <= nevMax);
 	assert(nevInit >= 3*block_size || nevInit==nevMax);
 	assert(nevMax  >= *nevConv+block_size);
 	assert(nevMax  <= *nevConv+nevInit);
 	assert(multiMax<= block_size);
+	/* 初始给出的 sizeX == nevInit 比最终要计算的 sizeX = nevMax 要小
+	 * 这样的好处是, dsyevx_ 的规模较小, 但 gcg 整体迭代次数变大, 
+	 * 当特征值个数真的非常大时会由效果 */
 
 	numIterMax = gcg_solver->numIterMax; tol = gcg_solver->tol;
+	/* 全局变量初始化 */
 	sizeC  = 0    ; sizeN = block_size  ; 
+	/* sizeX 需要大于 nevGiven */
 	sizeX  = nevInit; sizeP  = 0; sizeW = 0; 
 	sizeV  = sizeX+sizeP+sizeW;
 	startN = sizeC; endN  = startN+sizeN; endX  = sizeX;
@@ -1283,6 +1335,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	              +(nevInit+2*block_size)                   /* ss_diag */ 
 			+(nevInit+2*block_size)*(nevInit+2*block_size)  /* ss_matA */
 			+(nevInit+2*block_size)*(nevInit+1*block_size); /* ss_evec */ 
+	/* dbl_ws 包含 W 的部分 */
 	dbl_ws = gcg_solver->dbl_ws+distance;
 	gcg_solver->length_dbl_ws = (nevMax+2*block_size)                 /* ss_eval */
 	                +2*(nevInit+2*block_size)*(nevInit+2*block_size)  /* ss_matA ss_evec */   
@@ -1318,6 +1371,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 #if 0
 	ops_gcg->Printf("initial X\n");
 #endif
+	/* 对 X 赋随机初值且 B-正交归一化 */
 	InitializeX(V,ritz_vec,B,nevGiven);	
 
 #if DEBUG
@@ -1334,7 +1388,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	for (idx = sizeV; idx < (nevMax+2*block_size); ++idx) {
 	   ss_eval[idx] = ss_eval[sizeV-1];
 	}
-	/* ���� ss_mat ss_evec */
+	/* 更新 ss_mat ss_evec */
 	ss_matA = ss_diag+(sizeV-sizeC);
 	ss_evec = ss_matA+(sizeV-sizeC)*(sizeV-sizeC);
 
@@ -1343,13 +1397,16 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 #endif
 	ComputeRitzVec(ritz_vec,V,ss_evec);				
 	
+
+	// GCG 迭代部分
+
 	*nevConv = (*nevConv)<nevMax?(*nevConv):nevMax;
-	/* �û�ϣ�������������Ը��� */
+	/* 用户希望收敛的特征对个数 */
 	nev0 = *nevConv; *nevConv = 0; 
-	/* ���������ﵽ nev �� P �� W ��������Ϊ X ���� */
+	/* 收敛个数达到 nev 后将 P 和 W 部分扩充为 X 部分 */
 	nev  = nevInit<nevMax?2*block_size:nev0;
 	nev  = nev<nev0?nev:nev0;
-	numIter = 0; /* numIter ȡ��ֵʱ, С�ڵ�����ĵ����������ж������� */
+	numIter = 0; /* numIter 取负值时, 小于等于零的迭代不进行判断收敛性 */
 #if PRINT_FIRST_UNCONV
 	ops_gcg->Printf("------------------------------\n");
 	ops_gcg->Printf("numIter\tnevConv\n",numIter, *nevConv);		
@@ -1381,7 +1438,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 				nev    = nev<nev0?nev:nev0;
 				sizeX += sizeP+sizeW; 
 				sizeX  = sizeX<nevMax?sizeX:nevMax;
-				/* �� P �� W ����д�� ritz_vec */
+				/* 将 P 和 W 部分写入 ritz_vec */
 				start[0] = startN; end[0] = endW ;
 				start[1] = endX  ; end[1] = sizeX; 
 				coef     = ss_evec+(sizeV-sizeC)*(endX-sizeC);
@@ -1458,7 +1515,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 		ops_gcg->MultiVecDestroy(&debug_mv_ws,sizeX+sizeP+sizeW,ops_gcg);
 #endif
 	
-		/* ������ PtAP ���ֺ��ٸ��� sizeV */
+		/* 计算完 PtAP 部分后再更新 sizeV */
 		ComputeRayleighRitz(ss_matA,ss_eval,ss_evec,
 			gcg_solver->compRR_tol,*nevConv,ss_diag,A,V); /* update sizeC startN endN sizeN */
 
@@ -1477,7 +1534,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	} while (numIter < numIterMax);
 	
 	gcg_solver->numIter = numIter+(gcg_solver->numIterMax-numIterMax);
-	/* eval evec ���� sizeX �� */
+	/* eval evec 都是 sizeX 长 */
 	int inc = 1;
 	dcopy(&sizeX,ss_eval,&inc,eval,&inc);
 	
@@ -1531,7 +1588,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	return;
 }
 
-/* �趨 GCG �Ĺ����ռ� */
+/* 设定 GCG 的工作空间 */
 void EigenSolverSetup_GCG(
 	int    multiMax, double gapMin , 
 	int    nevInit , int    nevMax , int block_size, 
@@ -1648,7 +1705,7 @@ void EigenSolverDestroyWorkspace_GCG(
 }
 
 
-/* �����趨������Ҫ�� Setup ֮����� */
+/* 参数设定函数需要在 Setup 之后调用 */
 void EigenSolverSetParameters_GCG(
 	int check_conv_max_num,
 	const char *initX_orth_method, int initX_orth_block_size, int initX_orth_max_reorth, double initX_orth_zero_tol,

@@ -504,6 +504,16 @@ static void OrthBinary(void **x,int start_x, int *end_x, void *B, char orth_self
 	}
 	return;
 }
+
+// 二分块GramSchmidt正交化
+// Input: 
+// 		x 矩阵	B 矩阵
+//		start_x 起始位置
+//		ops 上下文
+// Output: 
+// 		x 矩阵X部分随机生成
+//		end_x 
+
 static void BinaryGramSchmidt(void **x, int start_x, int *end_x, 
 		void *B, struct OPS_ *ops)
 {
@@ -525,7 +535,7 @@ static void BinaryGramSchmidt(void **x, int start_x, int *end_x,
 	block_size    = bgs_orth->block_size;
 	mv_ws         = bgs_orth->mv_ws;
 	beta          = bgs_orth->dbl_ws;
-	/* ȥ�� X1 �� X0 �Ĳ��� */
+	/* 去掉 X1 中 X0 的部分 */
 	if (start_x > 0) {
 		start[0] = 0     ; end[0] = start_x;
 		start[1] = end[0]; end[1] = *end_x ;
@@ -560,21 +570,21 @@ static void BinaryGramSchmidt(void **x, int start_x, int *end_x,
 			}
 		}
 	}
-	/* ���ֿ������� */
+	/* 二分块正交化 */
 	/* 4<= block_size <= (*end_x-start_x)/4 */
 	char orth_self_method;
 	if ((*end_x-start_x)<16) {
 		if (block_size<=0) {
 			block_size = 4;
 		}
-		/* ʹ�� OrthSelf */
+		/* 使用 OrthSelf */
 		orth_self_method = 'M';		
 	}
 	else {		
 		if (block_size<=0 || block_size>(*end_x-start_x)/4) {
 			block_size = (*end_x-start_x)/4;
 		}
-		/* ʹ�� OrthSelfEVP */
+		/* 使用 OrthSelfEVP */
 		orth_self_method = 'E';
 	}
 	//ops->Printf("start_x = %d, end_x = %d, block_size = %d\n", start_x, *end_x, block_size);

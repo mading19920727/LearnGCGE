@@ -216,6 +216,8 @@ int TestEigenSolverGCG(void *A, void *B, int flag, int argc, char *argv[], struc
 	free(eval);
 	return 0;
 }
+
+// argv[1]: 存储矩阵A的文件名
 int TestAppCCS(int argc, char *argv[]) 
 {
 #if OPS_USE_MPI
