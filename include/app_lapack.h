@@ -1,6 +1,7 @@
 /**
  * @brief 基于LAPACK的矩阵和向量操作
  */
+
 #ifndef  _APP_LAPACK_H_
 #define  _APP_LAPACK_H_
 

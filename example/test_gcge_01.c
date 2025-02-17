@@ -256,8 +256,16 @@ int TestAppCCS(int argc, char *argv[])
    return 0;
 }
 
+/**
+ * @brief 根据MTX文件创建CCS格式的稀疏矩阵
+ * 
+ * @param ccs_matA GCGE中定义个CCS矩阵的结构体对象
+ * @param file_matrix mtx文件的路径
+ * @return int 错误码
+ */
 static int CreateCCSFromMTX(CCSMAT *ccs_matA, char* file_matrix)
 {
+    // 此函数分两部分，一部分为读取MTX文件，获取数据到临时变量；另一部分为将读取的数据存入CCS矩阵结构体中
 	int m, n, nnzA, isSymmetricA;
 	int *row_ptr = NULL;
     int *col_idx = NULL;
@@ -288,6 +296,12 @@ static int CreateCCSFromMTX(CCSMAT *ccs_matA, char* file_matrix)
 
 } 
 
+/**
+ * @brief 销毁CCS格式的稀疏矩阵
+ * 
+ * @param ccs_matA CCS格式的稀疏矩阵
+ * @return int 错误码
+ */
 static int DestroyMatrixCCS(CCSMAT *ccs_matA)
 {
 	free(ccs_matA->i_row); ccs_matA->i_row = NULL;

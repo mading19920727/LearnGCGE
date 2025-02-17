@@ -1,4 +1,6 @@
-
+/**
+ * @brief 基于CCS（压缩列存储）格式的矩阵和向量操作
+ */
 
 #include	<stdio.h>
 #include	<stdlib.h>
