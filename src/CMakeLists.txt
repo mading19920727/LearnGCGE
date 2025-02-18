@@ -3,7 +3,8 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # test
 include_directories(${PROJECT_SOURCE_DIR}/gcge/include)
-file(GLOB_RECURSE ALL_SOURCES "./*.cpp" "./*.c" "./*.h")
+include_directories(${PROJECT_SOURCE_DIR}/src)
+file(GLOB_RECURSE ALL_SOURCES "*.cpp" "*.c" "*.h")
 add_executable(test     ${ALL_SOURCES})
 
 target_link_libraries(test
