@@ -14,7 +14,7 @@ endif()
 
 # include
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/config/)
-# include(linux_mpicc)
+include(linux_mpicc)
 
 add_subdirectory(gcge)  # 添加 gcge 库的子目录
 add_subdirectory(src)   # 添加 src 可执行文件的子目录

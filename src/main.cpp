@@ -22,6 +22,9 @@ extern "C" {
 
 int main(int argc, char *argv[])
 {
+#if OPS_USE_MPI
+   MPI_Init(&argc, &argv);
+#endif
     // 1、读取文件
     CCSMAT ccs_matA;
     char *fileA = argv[1];
@@ -57,5 +60,9 @@ int main(int argc, char *argv[])
     // 6、销毁工作空间
     OPS_Destroy(&ccs_ops);
     destroyMatrixCCS(&ccs_matA, &ccs_matB);
+
+#if OPS_USE_MPI
+   MPI_Finalize();
+#endif
    	return 0;
 }

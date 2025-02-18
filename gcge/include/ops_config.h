@@ -6,7 +6,7 @@
 #define  OPS_USE_INTEL_MKL 0
 #define  OPS_USE_MATLAB    0
 #define  OPS_USE_MEMWATCH  0
-#define  OPS_USE_MPI       0
+#define  OPS_USE_MPI       1
 #define  OPS_USE_MUMPS     0
 #define  OPS_USE_OMP       0
 #define  OPS_USE_PHG       0

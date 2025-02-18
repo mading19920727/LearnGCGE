@@ -1,3 +1,16 @@
+### 采用MPI运行方式
+#### 编译前(编译方法不变)
+ - 修改`gcge\include\ops_config.h`中`#define  OPS_USE_MPI       0`值为1
+ - 取消`CMakeLists.txt`中注释` # include(linux_mpicc)`
+
+#### 运行时
+ - 命令行中执行`mpiexec -n <num> ./test.exe K.mtx M.mtx`, 其中<num>为期望采用的进程数量
+
+
+
+
+
+
 # GCGE文件结构
 
 app
