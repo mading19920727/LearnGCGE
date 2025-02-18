@@ -16,6 +16,11 @@ if(OpenMP_FOUND)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")  # 添加 OpenMP 编译选项
 endif()
 
+find_package(OpenBLAS REQUIRED)
+if(OpenBLAS_FOUND)
+    message(STATUS "OpenBLAS found, enabling support.")
+endif()
+
 #UMFPACK
 # 问题3：将umfpack的头文件路径放置在了环境变量中，通过添加环境变量将其添加到include_directories中，方式不好。
 #        可以直接建立子文件夹，将umfpack的头文件放置在其中，然后通过include_directories添加。
@@ -33,6 +38,8 @@ target_link_libraries(GCGE
         openblas
         ${MPI_C_LIBRARIES}  # Link MPI libraries
         OpenMP::OpenMP_C
+        OpenBLAS::OpenBLAS
+
 )
 
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/shared/lib)

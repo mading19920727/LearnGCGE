@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
     ops = ccs_ops;
     matA = static_cast<void*>(&ccs_matA);
     matB = static_cast<void*>(&ccs_matB);
-    GcgeParam gcgeparam{5};
+    GcgeParam gcgeparam{20};
 
     // 4、设置输出对象
     // 当前设置返回收敛的特征值和特征向量

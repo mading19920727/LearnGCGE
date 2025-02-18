@@ -1,10 +1,41 @@
-### 采用MPI运行方式
-#### 编译前(编译方法不变)
+### 一、GCGE配置编译
+
+#### 1. 下载外部依赖包
+GCGE当前依赖的外部包如下：
+- mingw-w64-x86_64-msmpi 10.1.1-11
+- mingw-w64-x86_64-openblas 0.3.28-1
+- mingw-w64-x86_64-gcc 14.2.0-1(其中自带openmp)
+
+windows平台下msys2环境：采用`pacman -S mingw-w64-x86_64-msmpi 10.1.1-11`进行安装，其他包类似
+
+#### 2. 编译
+```bash
+cd LearnGCGE
+mkdir build
+cd build
+cmake ..
+make 
+```
+
+### 二、运行
+
+#### 1、采用MPI运行方式
+编译前(默认设置为MPI形式，因此无需修改)：
  - 修改`gcge\include\ops_config.h`中`#define  OPS_USE_MPI       0`值为1
  - 取消`CMakeLists.txt`中注释` # include(linux_mpicc)`
 
-#### 运行时
- - 命令行中执行`mpiexec -n <num> ./test.exe K.mtx M.mtx`, 其中<num>为期望采用的进程数量
+运行时：
+ - 在Mingw64命令行窗口中执行如下命令, 其中<num>为期望采用的进程数量
+    ```bash
+    mpiexec -n <num> ./test.exe K.mtx M.mtx
+    ```
+
+#### 2、非MPI形成运行(需参照2.1内容做反向修改)
+在Mingw64命令行窗口中执行:
+
+```bash
+./test.exe K.mtx M.mtx
+```
 
 
 

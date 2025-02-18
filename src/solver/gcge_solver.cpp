@@ -1,3 +1,7 @@
+/**
+ * @brief GCGE特征值求解器外层接口
+ */
+
 #include "gcge_solver.h"
 #include <cstdint>
 #include <fstream>
