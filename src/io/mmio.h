@@ -14,6 +14,10 @@
 #ifndef MM_IO_H
 #define MM_IO_H
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 #define MM_MAX_LINE_LENGTH 1025
 #define MatrixMarketBanner "%%MatrixMarket"
 #define MM_MAX_TOKEN_LENGTH 64
@@ -499,5 +503,7 @@ int mm_read_unsymmetric_sparse(const char* fname, int* M_, int* N_, int* nz_, do
 
     return 0;
 }
-
+#ifdef __cplusplus
+}
+#endif
 #endif

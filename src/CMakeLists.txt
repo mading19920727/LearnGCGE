@@ -3,9 +3,8 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # test
 include_directories(${PROJECT_SOURCE_DIR}/gcge/include)
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} SRCS)
-
-add_executable(test     ${SRCS})
+file(GLOB_RECURSE ALL_SOURCES "./*.cpp" "./*.c" "./*.h")
+add_executable(test     ${ALL_SOURCES})
 
 target_link_libraries(test
     PRIVATE 

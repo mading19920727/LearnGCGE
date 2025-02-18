@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+extern "C"{
 #include "ops.h"
+}
 
-int TestAppCCS   (int argc, char *argv[]);
+extern "C" int TestAppCCS   (int argc, char *argv[]);
 
 int main(int argc, char *argv[])
 {
