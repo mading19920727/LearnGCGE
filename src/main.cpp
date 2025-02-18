@@ -37,17 +37,17 @@ int main(int argc, char *argv[])
     OPS_CCS_Set(ccs_ops);
     OPS_Setup(ccs_ops);
 
-    // 3、设置输出对象
-    std::vector<double> eigenvalue;
-    std::vector<std::vector<double>> eigenvector;
-
-    // 4、设置输入参数
+    // 3、设置输入参数
     void *matA, *matB;
     OPS* ops;
     ops = ccs_ops;
     matA = static_cast<void*>(&ccs_matA);
     matB = static_cast<void*>(&ccs_matB);
-    GcgeParam gcgeparam;
+    GcgeParam gcgeparam{5};
+
+    // 4、设置输出对象
+    std::vector<double> eigenvalue(gcgeparam.nevMax, 0);
+    std::vector<std::vector<double>> eigenvector;
 
     // 5、调用求解函数
     eigenSolverGCG(matA, matB, eigenvalue, eigenvector, &gcgeparam, ops);
