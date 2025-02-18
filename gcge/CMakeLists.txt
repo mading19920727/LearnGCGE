@@ -7,6 +7,15 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 # MPI include directories
 include_directories(${MPI_C_INCLUDE_PATH})
 
+# 查找 OpenMP 包
+find_package(OpenMP REQUIRED)
+
+# 如果找到 OpenMP，将其链接到目标
+if(OpenMP_FOUND)
+    message(STATUS "OpenMP found, enabling support.")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")  # 添加 OpenMP 编译选项
+endif()
+
 #UMFPACK
 # 问题3：将umfpack的头文件路径放置在了环境变量中，通过添加环境变量将其添加到include_directories中，方式不好。
 #        可以直接建立子文件夹，将umfpack的头文件放置在其中，然后通过include_directories添加。
@@ -23,6 +32,7 @@ target_link_libraries(GCGE
     PUBLIC
         openblas
         ${MPI_C_LIBRARIES}  # Link MPI libraries
+        OpenMP::OpenMP_C
 )
 
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/shared/lib)

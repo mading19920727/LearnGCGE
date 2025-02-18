@@ -8,7 +8,7 @@
 #define  OPS_USE_MEMWATCH  0
 #define  OPS_USE_MPI       1
 #define  OPS_USE_MUMPS     0
-#define  OPS_USE_OMP       0
+#define  OPS_USE_OMP       1
 #define  OPS_USE_PHG       0
 #define  OPS_USE_PETSC     0
 #define  OPS_USE_SLEPC     0
@@ -22,8 +22,9 @@
 #define FORTRAN_WRAPPER(x) x ## _
 #endif
 
+// 此处线程数之后应该修改为从系统获取可用线程数
 #if OPS_USE_OMP
-#define OMP_NUM_THREADS 2
+#define OMP_NUM_THREADS 10
 #endif
 
 //#if OPS_USE_INTEL_MKL
