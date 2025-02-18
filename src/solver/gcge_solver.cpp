@@ -134,8 +134,16 @@ int eigenSolverGCG(void* A, void* B, std::vector<double>& eigenvalue, std::vecto
     ops->Printf("++++++++++++++++++++++++++++++++++++++++++++++\n");
 
     EigenSolverDestroyWorkspace_GCG(nevInit, nevMax, block_size, A, gcg_mv_ws, &dbl_ws, &int_ws, ops);
+
+    // 开始导出数据
+    eigenvalue.resize(nevConv);
+    eigenvector.resize(nevConv);
     ops->Printf("eigenvectors\n");
+    for (auto i = 0; i < nevConv; ++i) {
+        std::cout << "index: " << i + 1 << " eigenvalue: " << eigenvalue[i] << std::endl;
+    }
     //ops->MultiVecView(evec,0,nevConv,ops);
+
     multiVecReturn((LAPACKVEC*)(evec), eigenvalue.size(), eigenvector); // 需先进行类型转化
 
     ops->MultiVecDestroy(&(evec), nevMax, ops);

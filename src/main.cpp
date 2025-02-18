@@ -46,8 +46,10 @@ int main(int argc, char *argv[])
     GcgeParam gcgeparam{5};
 
     // 4、设置输出对象
+    // 当前设置返回收敛的特征值和特征向量
+    // 即求解函数中会resize这两个对象
     std::vector<double> eigenvalue(gcgeparam.nevMax, 0);
-    std::vector<std::vector<double>> eigenvector;
+    std::vector<std::vector<double>> eigenvector(gcgeparam.nevMax);
 
     // 5、调用求解函数
     eigenSolverGCG(matA, matB, eigenvalue, eigenvector, &gcgeparam, ops);
