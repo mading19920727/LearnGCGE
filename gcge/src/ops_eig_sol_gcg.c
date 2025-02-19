@@ -939,11 +939,11 @@ if (sigma!=0.0 && B!=NULL && ops_gcg->MatAxpby==NULL) {
 
 // 调用 Rayleigh-Ritz过程 求解子空间投影问题： V^H A V C = V^H B V C \Lambda
 // Input: 
-// 		A 输入矩阵, V 子空间基向量矩阵矩阵
+// 		A 输入矩阵, V 子空间基向量矩阵
 //		nevConv 需要收敛的特征值个数
 //		tol 求解小规模特征值问题的阈值参数
 // Output: 
-//		ss_matA 子空间投影矩阵V^HAV, ss_diag 矩阵ss_matA对角部分 
+//		ss_matA 子空间投影问题的矩阵V^HAV, ss_diag 矩阵ss_matA对角部分 
 //		ss_eval 特征值, ss_evec 特征向量 
 static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_evec, double tol,
 		int nevConv, double *ss_diag, void *A, void **V)
