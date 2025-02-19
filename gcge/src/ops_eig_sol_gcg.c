@@ -161,9 +161,9 @@ static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven)
 // X = V C 将子空间基底下的特征向量转换为原空间基底下的特征向量 
 // Input: 
 // 		V 矩阵
-//		ritz_vec Rayleigh-Ritz求得的特征向量 C
+//		ss_evec 子空间基底下小规模问题的特征向量 C
 // Output: 
-// 		ss_evec 原空间基底下的近似特征向量
+// 		ritz_vec 原空间基底下的近似特征向量
 static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec)
 {
 #if TIME_GCG
@@ -324,7 +324,12 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
 	return nevConv;
 }
 
-
+// 构建子空间P：N_new - N_old
+// Input: 
+//		ss_evec 子空间基底下小规模问题的特征向量 C
+//		offset 
+// Output: 
+//		V 矩阵
 static void ComputeP(void **V, double *ss_evec, int *offset)
 {
 #if TIME_GCG
@@ -334,7 +339,7 @@ static void ComputeP(void **V, double *ss_evec, int *offset)
 	int nrows, idx, col, start[2], end[2]; 
 	double *source, *destin, *mat, *coef;
 	
-	/* ���� n ���ֶ�Ӧ���� */
+	/* 复制 n 部分对应的列 */
 #if DEBUG
 	ops_gcg->Printf("offset[0] = %d, sizeP = %d\n", offset[0], sizeP);	
 #endif
@@ -350,7 +355,7 @@ static void ComputeP(void **V, double *ss_evec, int *offset)
 #endif
 	}
 	sizeP = block_size;
-	/* ���� np ���� */
+	/* 置零 np 部分 */
 	for (idx = 0; idx < offset[0]; ++idx) {
 		length = (offset[idx*2+2]-offset[idx*2+1]);
 		destin = ss_evec+(sizeV-sizeC)*(sizeX-sizeC)+(offset[idx*2+1]-sizeC);
@@ -361,7 +366,7 @@ static void ComputeP(void **V, double *ss_evec, int *offset)
 	}
 	
 	
-	/* С��ģ������ */
+	/* 小规模正交化 */
 	mat    = ss_evec; 
 	nrows  = sizeV-sizeC; ldm  = sizeV-sizeC ;
 	startP = sizeX-sizeC; endP = startP+sizeP;
@@ -381,7 +386,7 @@ static void ComputeP(void **V, double *ss_evec, int *offset)
 			startP,endP,sizeP,startW,endW,sizeW,sizeV);
 #endif
 	double *orth_dbl_ws = ss_evec+ldm*endP;
-	/* ss_diag ss_matA ss_evec ʣ�µĿռ� */
+	/* ss_diag ss_matA ss_evec 剩下的空间 */
 	if (0 == strcmp("bqr", gcg_solver->compP_orth_method)) {
 		int length_orth_dbl_ws = gcg_solver->length_dbl_ws-(orth_dbl_ws - gcg_solver->dbl_ws); 
 		ops_gcg->DenseMatOrth(mat,nrows,ldm,startP,&endP,
@@ -438,7 +443,7 @@ static void ComputeP(void **V, double *ss_evec, int *offset)
 		ops_gcg->Printf("\n");
 	}
 #endif
-	/* ���� P */
+	/* 更新 P */
 	start[0] = startN; end[0] = endW ;
 	start[1] = 0     ; end[1] = sizeP;
 	coef     = ss_evec+(sizeV-sizeC)*(sizeX-sizeC);
@@ -468,7 +473,11 @@ static void ComputeP(void **V, double *ss_evec, int *offset)
 	return;	
 }
 
-
+// 构建子空间X：将上一步迭代的近似特征向量拷贝至V中X部分
+// Input: 
+//		ritz_vec 近似特征向量
+// Output: 
+//		V 矩阵
 static void ComputeX(void **V, void **ritz_vec)
 {
 #if TIME_GCG
@@ -477,14 +486,20 @@ static void ComputeX(void **V, void **ritz_vec)
 	int start[2], end[2];
 	start[0] = startN; end[0] = endX;
 	start[1] = startN; end[1] = endX;
-	ops_gcg->MultiVecAxpby(1.0,ritz_vec,0.0,V,start,end,ops_gcg);
+	ops_gcg->MultiVecAxpby(1.0,ritz_vec,0.0,V,start,end,ops_gcg);	// 只需要拷贝子矩阵[N N']
 #if TIME_GCG
     time_gcg.compX_time += ops_gcg->GetWtime();
 #endif
 	return;
 }
 
-
+// 构建子空间W：通过块PCG法求解 W, W = A^{-1}B X \Lambda = A^{-1}B [N_2 N_1'] \Lambda(N_2 N_1')
+// Input:
+//		A 矩阵, B 矩阵 
+//		ss_eval 近似特征值, ritz_vec 近似特征向量
+//		offset
+// Output: 
+//		V 矩阵
 static void ComputeW(void **V, void *A, void *B,
 	double *ss_eval, void **ritz_vec, int *offset)
 {
@@ -817,7 +832,7 @@ static void ComputeW12(void **V, void *A, void *B,
 	start[1] = endW  ; end[1] = start[1]+block_size;
 	ops_gcg->MultiVecAxpby(1.0,V,0.0,V,start,end,ops_gcg);
 
-/* �Ƿ���ԭ�� �Ҷ��� ���ж������ */
+/* 是否按照原有 右端项 进行二次求解 */
 #if 0
 	/* set b, b = (lambda+sigma) Bx, where x is new */
 	start[0] = endW     ; end[0] = start[0]+block_size;
@@ -846,7 +861,7 @@ static void ComputeW12(void **V, void *A, void *B,
 		if (block_size >= total_length/2) break;
 	}
 #else
-/* ���������, ��MatDotMultiVecShift��, �Ҷ������Ϊ��ʱ�ռ�, �ı���ֵ */
+/* 这种情况下, 在MatDotMultiVecShift中, 右端项会做为临时空间, 改变了值 */
 if (sigma!=0.0 && B!=NULL && ops_gcg->MatAxpby==NULL) {
 	block_size = 0; inc = 1; 
 	for (idx = 0; idx < offset[0]; ++idx) {
@@ -1277,7 +1292,8 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 // 调用 GCG Eigensolver 求解代数特征值问题： Ax = \lambda Bx
 // Input: 
 // 		A 矩阵, B 矩阵
-//		nevGiven nevConv
+//		nevGiven 当前批次求解前，收敛特征对的总个数
+//		nevConv  当前批次求解后，收敛特征对的总个数
 // 		ops 上下文
 // Output: 
 // 		eval 特征值， evec 特征向量
@@ -1291,7 +1307,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	gcg_solver = (GCGSolver*)ops->eigen_solver_workspace;
 	gcg_solver->A = A; gcg_solver->B = B; 
 	gcg_solver->nevGiven = nevGiven;
-	gcg_solver->nevConv  = *nevConv;	
+	gcg_solver->nevConv  = *nevConv; 
 	ops_gcg = ops;
     int nevMax, multiMax, block_size, nevInit, nev0, nev;
     int numIterMax, numIter, numCheck;
@@ -1317,9 +1333,10 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 
 	numIterMax = gcg_solver->numIterMax; tol = gcg_solver->tol;
 	/* 全局变量初始化 */
+	// V= [X P W], X = [C N N'], C 先前批次收敛的特征向量, N 当前批次已收敛的特征向量
 	sizeC  = 0    ; sizeN = block_size  ; 
 	/* sizeX 需要大于 nevGiven */
-    sizeX = nevInit;
+    sizeX = nevInit;	// X = [C N N']
     sizeP = 0;
     sizeW = 0;
     sizeV = sizeX + sizeP + sizeW;
@@ -1334,6 +1351,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	V        = gcg_solver->mv_ws[0]; ritz_vec = evec;
 	mv_ws[0] = gcg_solver->mv_ws[1]; mv_ws[1] = gcg_solver->mv_ws[2];
 	mv_ws[2] = gcg_solver->mv_ws[3];
+	// 标定各个数组在内存空间的起始位置
 	ss_eval  = gcg_solver->dbl_ws; 
 	for (idx = 0; idx < (nevMax+2*block_size); ++idx) {
 	   ss_eval[idx] = 1.0;
@@ -1467,6 +1485,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 				numIterMax -= numIter; numIter = 0;				
 			}
 		}
+		// 由于构造P需要上一步迭代V的完整信息，所以先构造P
 		if (numIter == 0)	{
 			sizeP = 0; startP = endX; endP = startP+sizeP;
 		}
@@ -1598,7 +1617,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	return;
 }
 
-/* 设定 GCG 的工作空间 */
+/* 设定 GCG 求解器结构体配置 */
 void EigenSolverSetup_GCG(
 	int    multiMax, double gapMin , 
 	int    nevInit , int    nevMax , int block_size, 
@@ -1612,7 +1631,7 @@ void EigenSolverSetup_GCG(
 		.nevInit    = 3 , .nevGiven   = 0,
 		.block_size = 1 , .numIterMax = 4, .user_defined_multi_linear_solver = 0,
 		.mv_ws      = {}, .dbl_ws  = NULL, .int_ws = NULL,		
-		/* �㷨�ڲ����� */		
+		/* 算法内部参数 */			
 		.initX_orth_method     = "mgs",
 		.initX_orth_block_size = -1   ,
 		.initX_orth_max_reorth = 1    ,
@@ -1657,8 +1676,8 @@ void EigenSolverSetup_GCG(
  	gcg_solver_static.check_conv_max_num = block_size;
  	gcg_solver_static.user_defined_multi_linear_solver = user_defined_multi_linear_solver;
 		
-	ops->eigen_solver_workspace = (void *)(&gcg_solver_static);
-	ops->EigenSolver            = GCG;
+	ops->eigen_solver_workspace = (void *)(&gcg_solver_static); // 关联GCGE结构体
+	ops->EigenSolver            = GCG;	// 关联GCGE的求解函数GCG
 	return;	
 }
 
@@ -1678,7 +1697,7 @@ void EigenSolverCreateWorkspace_GCG(
 	ops->MultiVecCreateByMat(&mv_ws[3],block_size,mat,ops);				
 	ops->MultiVecSetRandomValue(mv_ws[3],0,block_size,ops);
 
-	/* ���� nevInit ���趨Ҫ�� EigenSolverSetup_GCG �� nevInit һ�� */
+	/* 这里 nevInit 的设定要与 EigenSolverSetup_GCG 中 nevInit 一致 */
 	sizeV = nevInit+2*block_size;
 	int length_dbl_ws = 2*sizeV*sizeV+10*sizeV
 		+(nevMax+2*block_size)+(nevMax)*block_size;
