@@ -83,14 +83,17 @@ static void MatDotMultiVecShift(void **x, void **y,
 	return;
 }
 
-
-// 随机初始化X
-// Input: 
-// 		B 矩阵
-//		nevGiven 已给的近似特征向量个数
-//		ritz_vec 已给的近似特征向量
-// Output: 
-// 		V 矩阵X部分已完成随机初始化
+/**
+ * @brief 该函数的主要目的是初始化矩阵V的X部分，并确保其X部分的列向量关于矩阵 B 正交。通过以下步骤实现：
+ * 1) 定的近似特征向量初始化部分列。
+ * 2) 对初始化的列进行正交化。
+ * 3) 对剩余列进行随机初始化并正交化。
+ * 4) 确保最终生成的列数满足要求。
+ * @param V 输入：要初始化的矩阵; 输出：矩阵X部分已完成随机初始化
+ * @param ritz_vec 已给的近似特征向量(其地址同特征向量地址，第一次传入时是随机值)
+ * @param B B矩阵
+ * @param nevGiven 已给的近似特征向量个数
+ */
 static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven)
 {
 #if TIME_GCG
@@ -132,6 +135,7 @@ static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven)
 				ritz_vec,orth_dbl_ws,ops_gcg);
 	
 	// 对V的前nevGiven列进行B-正交化
+    // V中的任意两个列向量 u 和 v，若满足 u^T Bv=0，则称 u 和 v 关于矩阵 B 正交。
 	ops_gcg->MultiVecOrth(V,0,&nevGiven,B,ops_gcg);
 	// MultiVecSetRandomValue(void **x, int start, int end, struct OPS_ *ops)
 	ops_gcg->MultiVecSetRandomValue(V,nevGiven,sizeX,ops_gcg);
@@ -935,11 +939,11 @@ if (sigma!=0.0 && B!=NULL && ops_gcg->MatAxpby==NULL) {
 
 // 调用 Rayleigh-Ritz过程 求解子空间投影问题： V^H A V C = V^H B V C \Lambda
 // Input: 
-// 		A 矩阵, V 矩阵
+// 		A 输入矩阵, V 子空间基向量矩阵矩阵
 //		nevConv 需要收敛的特征值个数
 //		tol 求解小规模特征值问题的阈值参数
 // Output: 
-//		ss_matA 矩阵V^HAV, ss_diag 矩阵ss_matA对角部分 
+//		ss_matA 子空间投影矩阵V^HAV, ss_diag 矩阵ss_matA对角部分 
 //		ss_eval 特征值, ss_evec 特征向量 
 static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_evec, double tol,
 		int nevConv, double *ss_diag, void *A, void **V)
@@ -1289,13 +1293,14 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	gcg_solver->nevGiven = nevGiven;
 	gcg_solver->nevConv  = *nevConv;	
 	ops_gcg = ops;
-	int    nevMax, multiMax, block_size, nevInit, nev0, nev;
-	int    numIterMax, numIter, numCheck;
-	void   **V, **ritz_vec;
-	double *ss_matA, *ss_diag, *ss_eval, *ss_evec, *tol;
-	int    start[2], end[2], idx; double *coef;
+    int nevMax, multiMax, block_size, nevInit, nev0, nev;
+    int numIterMax, numIter, numCheck;
+    void **V, **ritz_vec;
+    double *ss_matA, *ss_diag, *ss_eval, *ss_evec, *tol;
+    int start[2], end[2], idx;
+    double *coef;
 
-	nevInit    = gcg_solver->nevInit   ;
+    nevInit    = gcg_solver->nevInit   ;
 	nevMax     = gcg_solver->nevMax    ; 
 	block_size = gcg_solver->block_size; 
 	multiMax   = gcg_solver->multiMax  ; 
@@ -1314,12 +1319,18 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 	/* 全局变量初始化 */
 	sizeC  = 0    ; sizeN = block_size  ; 
 	/* sizeX 需要大于 nevGiven */
-	sizeX  = nevInit; sizeP  = 0; sizeW = 0; 
-	sizeV  = sizeX+sizeP+sizeW;
-	startN = sizeC; endN  = startN+sizeN; endX  = sizeX;
-	startP = endX ; endP  = startP+sizeP;
-	startW = endP ; endW  = startW+sizeW;
-	/* workspace */
+    sizeX = nevInit;
+    sizeP = 0;
+    sizeW = 0;
+    sizeV = sizeX + sizeP + sizeW;
+    startN = sizeC;
+    endN = startN + sizeN;
+    endX = sizeX;
+    startP = endX;
+    endP = startP + sizeP;
+    startW = endP;
+    endW = startW + sizeW;
+    /* workspace */
 	V        = gcg_solver->mv_ws[0]; ritz_vec = evec;
 	mv_ws[0] = gcg_solver->mv_ws[1]; mv_ws[1] = gcg_solver->mv_ws[2];
 	mv_ws[2] = gcg_solver->mv_ws[3];
@@ -1379,26 +1390,25 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 #endif
 
 #if 0
-	ops_gcg->Printf("ComputeRayleighRitz\n");	
+	ops_gcg->Printf("ComputeRayleighRitz\n");
 #endif
-	ComputeRayleighRitz(ss_matA,ss_eval,ss_evec,
-		gcg_solver->compRR_tol,0,ss_diag,A,V);	
+    ComputeRayleighRitz(ss_matA, ss_eval, ss_evec,
+                        gcg_solver->compRR_tol, 0, ss_diag, A, V);
 
-
-	for (idx = sizeV; idx < (nevMax+2*block_size); ++idx) {
-	   ss_eval[idx] = ss_eval[sizeV-1];
-	}
-	/* 更新 ss_mat ss_evec */
-	ss_matA = ss_diag+(sizeV-sizeC);
-	ss_evec = ss_matA+(sizeV-sizeC)*(sizeV-sizeC);
+    for (idx = sizeV; idx < (nevMax + 2 * block_size); ++idx)
+    {
+        ss_eval[idx] = ss_eval[sizeV - 1];
+    }
+    /* 更新 ss_mat ss_evec */
+    ss_matA = ss_diag + (sizeV - sizeC);
+    ss_evec = ss_matA + (sizeV - sizeC) * (sizeV - sizeC);
 
 #if DEBUG
-	ops_gcg->Printf("ComputeRitzVec\n");	
+    ops_gcg->Printf("ComputeRitzVec\n");
 #endif
-	ComputeRitzVec(ritz_vec,V,ss_evec);				
-	
+    ComputeRitzVec(ritz_vec, V, ss_evec);
 
-	// GCG 迭代部分
+    // GCG 迭代部分
 
 	*nevConv = (*nevConv)<nevMax?(*nevConv):nevMax;
 	/* 用户希望收敛的特征对个数 */
