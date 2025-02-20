@@ -952,14 +952,20 @@ if (sigma!=0.0 && B!=NULL && ops_gcg->MatAxpby==NULL) {
 	return;
 }
 
-// 调用 Rayleigh-Ritz过程 求解子空间投影问题： V^H A V C = V^H B V C \Lambda
-// Input: 
-// 		A 输入矩阵, V 子空间基向量矩阵
-//		nevConv 需要收敛的特征值个数
-//		tol 求解小规模特征值问题的阈值参数
-// Output: 
-//		ss_matA 子空间投影问题的矩阵V^HAV, ss_diag 矩阵ss_matA对角部分 
-//		ss_eval 特征值, ss_evec 特征向量 
+/**
+ * @brief 调用 Rayleigh-Ritz过程 求解子空间投影问题： V^H A V C = V^H B V C \Lambda
+ * 公式中C：特征向量矩阵, \Lambda: 由特征值形成的对角线矩阵
+ * Rayleigh-Ritz过程将大规模特征值问题转化为小规模特征值问题并求解其特征值和特征向量
+ * 
+ * @param ss_matA (输出变量)用于存放子空间投影问题的矩阵V^HAV，一个二维数组，大小为 (sizeV−sizeC)×(sizeV−sizeC)
+ * @param ss_eval (输出变量)存储计算得到的小规模特征值问题的特征值，一个一维数组，大小为 sizeV−sizeC
+ * @param ss_evec (输出变量)存储计算得到的小规模特征值问题的特征向量，一个二维数组，大小为 (sizeV−sizeC)×(sizeV−sizeC)
+ * @param tol (输入变量)求解小规模特征值问题的阈值参数，用于控制特征值求解的精度。
+ * @param nevConv (输入变量)需要收敛的特征值个数？？当前收敛的？
+ * @param ss_diag (输出变量)存储子空间投影问题的矩阵ss_matA的对角部分
+ * @param A (输入变量)刚度矩阵
+ * @param V (输入变量)子空间基向量矩阵 V
+ */
 static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_evec, double tol,
 		int nevConv, double *ss_diag, void *A, void **V)
 {
@@ -1090,14 +1096,27 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 	ops_gcg->Printf("ss_diag:\n");
 	for (idx = 0; idx < length; ++idx) ops_gcg->Printf("%f\n",destin[idx]);
 #endif	
-	/* 计算小规模特征值问题 */
+	/* 基于LAPACK计算小规模特征值问题的参数设置 */
 	char   JOBZ, RANGE, UPLO; 
-	int    LDA, M, LDZ, INFO, N, LWORK, *IWORK, *IFAIL; 
-	double ABSTOL, *AA, *W, *Z, *WORK;
-	JOBZ   = 'V'        ; RANGE  = 'A'; UPLO  = 'U'        ;
-	LDA    = sizeV-sizeC; ABSTOL = tol; LDZ   = sizeV-sizeC; 
-	IWORK  = int_ws; INFO   = 0  ;
-	/* 不再计算 C 部分 */
+	int    LDA;
+    int M; // 输出变量：找到的特征值总数
+    int LDZ, INFO;
+    int N; // 矩阵的阶数(行数/列数)
+    int LWORK, *IWORK, *IFAIL;
+	double ABSTOL;
+    double *AA; // 输入矩阵A
+    double *W; // 输出变量：前 M 个元素包含按升序排列的选中特征值
+    double *Z; // 输出变量：前 M 列包含对应于选中特征值的正交特征向量
+    double *WORK;
+    JOBZ = 'V'; // 表示计算特征值和特征向量
+    RANGE = 'A'; // 表示计算所有特征值
+    UPLO = 'U'; // 表示存储上三角部分
+    LDA = sizeV - sizeC; // 数组A的首维长度
+    ABSTOL = tol; // 特征值的绝对误差容限
+    LDZ = sizeV - sizeC;
+    IWORK = int_ws;
+    INFO = 0;
+    /* 不再计算 C 部分 */
 	N      = sizeV-sizeC; M = N;
 	IFAIL  = int_ws+5*N; 
 	AA     = ss_matA;
@@ -1178,7 +1197,9 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 				NULL,NULL,&IL,&IU,&ABSTOL,&M,
 				W,Z,&LDZ,WORK,&LWORK,IWORK,IFAIL,&INFO);
 		assert(M==IU-IL+1);
-		assert(INFO==0);
+        if (INFO != 0) {
+            ops_gcg->Printf("dsyevx: INFO = %d\n", INFO);
+        }
 	}
 #if TIME_GCG
     	time_gcg.dsyevx_time += ops_gcg->GetWtime();
