@@ -28,10 +28,26 @@ endif()
 
 find_package(OpenBLAS REQUIRED)
 
+# 暂时解决mingw下OpenBLAS_LIBRARIES未定义问题。之后统一编写cmake文件
+# 定义宏来根据操作系统选择链接方式
+macro(link_openblas target)
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # 在 Ubuntu 上使用 ${OpenBLAS_LIBRARIES}
+        target_link_libraries(${target} PRIVATE ${OpenBLAS_LIBRARIES})
+        message(STATUS "Linking OpenBLAS on Linux: ${OpenBLAS_LIBRARIES}")
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        # 在 MinGW 上使用 OpenBLAS::OpenBLAS
+        target_link_libraries(${target} PRIVATE OpenBLAS::OpenBLAS)
+        message(STATUS "Linking OpenBLAS on Windows (MinGW): OpenBLAS::OpenBLAS")
+    else()
+        message(FATAL_ERROR "Unsupported system: ${CMAKE_SYSTEM_NAME}")
+    endif()
+endmacro()
+
 if (OpenBLAS_FOUND)
     message(STATUS "OpenBLAS found, enabling support.")
     include_directories(${OpenBLAS_INCLUDE_DIRS})
-    target_link_libraries(GCGE PRIVATE ${OpenBLAS_LIBRARIES})
+    link_openblas(GCGE)
 else()
     message(FATAL_ERROR "OpenBLAS not found!")
 endif()
