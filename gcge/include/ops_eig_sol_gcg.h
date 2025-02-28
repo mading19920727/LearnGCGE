@@ -35,20 +35,34 @@ typedef struct GCGSolver_ {
 	double *dbl_ws;    // 双精度内存空间，2*sizeV*sizeV + 2*sizeV, 用于存储子空间投影问题的矩阵和对角元，求得的特征向量和特征值
 	int *int_ws;	   // 整型内存空间
 	int  length_dbl_ws;// 双精度内存空间数组长度
-	int  user_defined_multi_linear_solver;	
 	int  check_conv_max_num;
-	char initX_orth_method[8] ; int    initX_orth_block_size; 
-	int  initX_orth_max_reorth; double initX_orth_zero_tol;
-	char compP_orth_method[8] ; int    compP_orth_block_size; 
-	int  compP_orth_max_reorth; double compP_orth_zero_tol;
-	char compW_orth_method[8] ; int    compW_orth_block_size; 
-	int  compW_orth_max_reorth; double compW_orth_zero_tol;
-	int  compW_cg_max_iter    ; double compW_cg_rate; 
-	double compW_cg_tol       ; char   compW_cg_tol_type[8];
-	int  compW_cg_auto_shift  ; double compW_cg_shift;
-	int  compW_cg_order       ;
-	int    compRR_min_num     ; double compRR_min_gap; 
-	double compRR_tol; /*tol for dsyevx_ */	
+	
+	char initX_orth_method[8] ; 
+	int    initX_orth_block_size; 
+	int  initX_orth_max_reorth; 
+	double initX_orth_zero_tol;
+	char compP_orth_method[8] ; 
+	int    compP_orth_block_size; 
+	int  compP_orth_max_reorth; 
+	double compP_orth_zero_tol;
+	char compW_orth_method[8] ; 
+	int    compW_orth_block_size; 
+	int  compW_orth_max_reorth; 
+	double compW_orth_zero_tol;
+
+	int  user_defined_multi_linear_solver;	// 指定用户自定义的线性方程组求解器，目前仅支持 0： PCG
+	int  compW_cg_max_iter    ; 
+	double compW_cg_rate; 
+	double compW_cg_tol       ; 
+	char   compW_cg_tol_type[8];
+	int  compW_cg_auto_shift  ; // 是否自动按照内置公式计算shift
+	double compW_cg_shift;      // 王博士认为这个成员变量是多余的，没有实际作用
+	int  compW_cg_order       ; // 用于是否调用ComputeW12（冗余的函数）的判断，可删去
+
+	int    compRR_min_num     ; 
+	double compRR_min_gap; 
+	double compRR_tol; 			/*tol for dsyevx_ */	
+	
 } GCGSolver;
 
 void EigenSolverSetup_GCG(

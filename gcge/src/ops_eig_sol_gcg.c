@@ -328,8 +328,9 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
     return nevConv;
 }
 
-// 构建子空间P：N_new - N_old
-// Input:
+// 构建子空间P： P^{(i+1)} = X^{(i+1)} - X^{(i)} (X^{(i)T} B X^{(i+1)})，
+// 			   对应于 N_new - N_old (N_old^T B N_new)
+// Input: 
 //		ss_evec 子空间基底下小规模问题的特征向量 C
 //		offset
 // Output:
@@ -509,12 +510,13 @@ static void ComputeX(void **V, void **ritz_vec) {
     return;
 }
 
-// 构建子空间W：通过块PCG法求解 W, W = A^{-1}B X \Lambda = A^{-1}B [N_2 N_1'] \Lambda(N_2 N_1')
+// 通过动态选取参数sigma的反幂法迭代步构建子空间W：
+// 		块PCG法非精确求解 W, A W = B X \Lambda = B [N_2 N_1'] \Lambda(N_2 N_1')
 // Input:
 //		A 矩阵, B 矩阵
 //		ss_eval 近似特征值, ritz_vec 近似特征向量
-//		offset
-// Output:
+//		offset 矩阵W的列偏移索引， offset[0]为列数， [offset[idx*2+1],offset[idx*2+2]) 为第idx列位置索引
+// Output: 
 //		V 矩阵
 static void ComputeW(void **V, void *A, void *B,
                      double *ss_eval, void **ritz_vec, int *offset) {
@@ -524,7 +526,7 @@ static void ComputeW(void **V, void *A, void *B,
     void **b = ritz_vec;
     int start[2], end[2], block_size, length, inc, idx;
     double *destin = dbl_ws;
-
+	// 自动动态选取shift参数
     double sigma = 0.0;
     if (gcg_solver->compW_cg_auto_shift == 1) {
         sigma = -ss_eval[sizeC] + ((ss_eval[sizeC + 1] - ss_eval[sizeC]) * 0.01);
@@ -540,19 +542,25 @@ static void ComputeW(void **V, void *A, void *B,
 #if DEBUG
     ops_gcg->Printf("ss_eval[%d] = %e, sigma = %e\n", sizeC, ss_eval[sizeC], gcg_solver->sigma);
 #endif
-    assert(gcg_solver->compW_cg_auto_shift == 0 || gcg_solver->user_defined_multi_linear_solver == 0);
-    /* initialize */
-    block_size = 0;
-    startW = endP;
-    inc = 1;
-    for (idx = 0; idx < offset[0]; ++idx) {
-        length = offset[idx * 2 + 2] - offset[idx * 2 + 1];
-        /* initialize x */
-        start[0] = offset[idx * 2 + 1];
-        end[0] = offset[idx * 2 + 2];
-        start[1] = startW + block_size;
-        end[1] = start[1] + length;
-        ops_gcg->MultiVecAxpby(1.0, ritz_vec, 0.0, V, start, end, ops_gcg);
+	assert(gcg_solver->compW_cg_auto_shift == 0 || gcg_solver->user_defined_multi_linear_solver == 0);
+
+	/* initialize */
+	block_size = 0; // W矩阵的元素计数器，用于接下来的for循环 
+	startW = endP; 
+	inc = 1; 
+
+	// 逐列构造线性方程组右端项b， 注意：block_size 和 destin 会累加更新
+	for (idx = 0; idx < offset[0]; ++idx) {
+
+		length   = offset[idx * 2 + 2]-offset[idx * 2 + 1];
+		
+		/* initialize x */
+		// 将子空间投影问题的解作为线性方程组迭代的初始解
+		start[0] = offset[idx * 2 + 1]; 
+		end[0] = offset[idx * 2 + 2];
+		start[1] = startW+block_size; 
+		end[1] = start[1]+length;
+		ops_gcg->MultiVecAxpby(1.0, ritz_vec, 0.0, V, start, end, ops_gcg);
 #if 0
 		/* 20210530 Ax = lambda Bx - theta Ax */
 		int tmp_start[2], tmp_end[2]; double tmp_theta = 0.0;
@@ -565,6 +573,8 @@ static void ComputeW(void **V, void *A, void *B,
         ops_gcg->MultiVecView(V, start[1], end[1], ops_gcg);
 #endif
         /* set b, b = (lambda+sigma) Bx */
+
+		// Step 1: b = BX
         start[0] = offset[idx * 2 + 1];
         end[0] = offset[idx * 2 + 2];
         start[1] = offset[1] + block_size;
@@ -581,7 +591,8 @@ static void ComputeW(void **V, void *A, void *B,
 
         int i;
 #if 1
-        /* shift eigenvalues with sigma */
+        // Step 2: b = (lambda+sigma) Bx
+		/* shift eigenvalues with sigma */
         for (i = start[0]; i < end[0]; ++i)
             ss_eval[i] += sigma;
         ops_gcg->MultiVecLinearComb(NULL, b, 0, start, end,
@@ -632,23 +643,23 @@ static void ComputeW(void **V, void *A, void *B,
 #if TIME_GCG
     time_gcg.linsol_time -= ops_gcg->GetWtime();
 #endif
-    void (*lin_sol)(void *, void **, void **, int *, int *, struct OPS_ *);
+    void (*lin_sol)(void *, void **, void **, int *, int *, struct OPS_ *); // 冗余操作？ 作为中间变量对 ops_gcg->MultiLinearSolver 进行了一次备份和恢复
     void *ws;
-    lin_sol = ops_gcg->MultiLinearSolver;
-    ws = ops_gcg->multi_linear_solver_workspace;
+    lin_sol = ops_gcg->MultiLinearSolver; // 冗余操作？
+    ws = ops_gcg->multi_linear_solver_workspace; // 冗余操作？
     /* b is set to (lambda+sigma) Bx */
-    if (gcg_solver->user_defined_multi_linear_solver == 2) {
+    if (gcg_solver->user_defined_multi_linear_solver == 2) {		// 疑似漏删的代码片段，没有信息显示2号求解器使用何种方法
         ops_gcg->MultiLinearSolver(A, b, V, start, end, ops_gcg);
     }
 #if TIME_GCG
     time_gcg.linsol_time += ops_gcg->GetWtime();
 #endif
     if (gcg_solver->user_defined_multi_linear_solver == 0 ||
-        gcg_solver->user_defined_multi_linear_solver == 2) {
+        gcg_solver->user_defined_multi_linear_solver == 2) {	// 疑似漏删的代码片段，没有信息显示2号求解器使用何种方法  
 #if 1
-        /* 20210628 A = sigma B + A */
+        // 配置BlockPCG求解器参数
         if (sigma != 0.0 && B != NULL && ops_gcg->MatAxpby != NULL) {
-            ops_gcg->MatAxpby(sigma, B, 1.0, A, ops_gcg);
+            ops_gcg->MatAxpby(sigma, B, 1.0, A, ops_gcg);	// 构造线性方程组系数矩阵  /* 20210628 A = sigma B + A */
             MultiLinearSolverSetup_BlockPCG(
                 gcg_solver->compW_cg_max_iter,
                 gcg_solver->compW_cg_rate,
@@ -670,11 +681,12 @@ static void ComputeW(void **V, void *A, void *B,
 #if TIME_GCG
     time_gcg.linsol_time -= ops_gcg->GetWtime();
 #endif
+	// 非精确求解线性方程组
     ops_gcg->MultiLinearSolver(A, b, V, start, end, ops_gcg);
 #if 1
     /* 20210628 recover A */
     if (sigma != 0.0 && B != NULL && ops_gcg->MatAxpby != NULL) {
-        /* A = -sigma B + A */
+        // 恢复矩阵A /* A = -sigma B + A */
         ops_gcg->MatAxpby(-sigma, B, 1.0, A, ops_gcg);
     }
 #endif
@@ -687,8 +699,8 @@ static void ComputeW(void **V, void *A, void *B,
 #if TIME_GCG
     time_gcg.linsol_time += ops_gcg->GetWtime();
 #endif
-    ops_gcg->MultiLinearSolver = lin_sol;
-    ops_gcg->multi_linear_solver_workspace = ws;
+    ops_gcg->MultiLinearSolver = lin_sol; // 冗余操作？
+    ops_gcg->multi_linear_solver_workspace = ws; // 冗余操作？
 
 #if DEBUG
     ops_gcg->Printf("W = inv(A) b:\n");
@@ -750,6 +762,8 @@ static void ComputeW(void **V, void *A, void *B,
     return;
 }
 
+// 据反馈为一次无效的改进，可以忽略。 
+// for linear response eigenvalue problems
 static void ComputeW12(void **V, void *A, void *B,
                        double *ss_eval, void **ritz_vec, int *offset) {
 #if TIME_GCG
@@ -856,6 +870,7 @@ static void ComputeW12(void **V, void *A, void *B,
     ops_gcg->MultiVecView(b, offset[1], offset[1] + (total_length / 2), ops_gcg);
 #endif
 
+	// 非精确求解线性方程组
     ops_gcg->MultiLinearSolver(A, b, V, start, end, ops_gcg);
 #if TIME_GCG
     time_gcg.linsol_time += ops_gcg->GetWtime();
@@ -1399,7 +1414,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 static void GCG(void *A, void *B, double *eval, void **evec,
                 int nevGiven, int *nevConv, struct OPS_ *ops) {
 #if 1
-    /* offsetW[0] 表示有多少个块,
+    /* offsetW[0] 表示有多少个列,
      * offsetW[1] <= idx < offsetW[2] 是未收敛的编号 */
     int *offsetP, *offsetW, *ptr_tmp;
     gcg_solver = (GCGSolver *)ops->eigen_solver_workspace;
