@@ -1070,7 +1070,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
     sizeN = endN - startN;
     sizeC = nevConv;
 
-    /* 更新 ss_mat ss_evec */
+    /* 已收敛部分C不再考虑，更新 ss_mat ss_evec 起始地址*/
     // 由于sizeC大小变更，ss_matA与ss_evec均向后平移相应位置
     ss_matA = ss_diag + (sizeV - sizeC);
     ss_evec = ss_matA + (sizeV - sizeC) * (sizeV - sizeC);
@@ -1084,6 +1084,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 #endif
     // 2）再计算V^H A W 部分
     if (sizeW > 0) {
+        /* 计算 [N N']^T A W 部分 */
         start[0] = startN;
         end[0] = endW;
         start[1] = startW;
@@ -1093,7 +1094,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
          *               (endW-startW) 个 向量 */
         ops_gcg->MultiVecQtAP('S', 'N', V, A, V, 0, start, end, destin, sizeV - sizeC,
                               mv_ws[0], ops_gcg);
-        /* 对称化 */
+        /* 利用对称性，直接得到 W^T A [N N'] 部分*/
         length = sizeX + sizeP - sizeC;
         source = ss_matA + (sizeV - sizeC) * (sizeX + sizeP - sizeC);
         incx = 1;
@@ -1132,21 +1133,21 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
             end[1] = start[1] + block_size;
         }
     } else {
-        /* 置零 X P 部分, 忽略 C 部分 */
+        /* 初始化置零 [X P]T A [X P] 部分, C 部分在标定位置时已忽略 */
         length = sizeX + sizeP - sizeC;
         destin = ss_matA; // 起始地址是否有错？，是否应该为ss_matA + sizeC
         for (idx = 0; idx < length; ++idx) {
             memset(destin, 0, length * sizeof(double));
             destin += sizeV - sizeC;
         }
-        /* 赋值 X 部分的对角线 */
+        /* 赋值 X^T A X 部分的对角线，即为特征值 */
         length = sizeX - sizeC;
         source = ss_eval + sizeC;
         incx = 1;
         destin = ss_matA;
         incy = (sizeV - sizeC) + 1;
         dcopy(&length, source, &incx, destin, &incy);
-        /* 更新 P^H A P 部分*/
+        /* 更新 P^T A P 部分*/
         length = sizeP;
         source = dbl_ws;
         incx = 1;
@@ -1488,6 +1489,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     mv_ws[2] = gcg_solver->mv_ws[3];
     // 标定各个数组在内存空间的起始位置
     ss_eval = gcg_solver->dbl_ws;
+    // 特征值初始化
     for (idx = 0; idx < (nevMax + 2 * block_size); ++idx) {
         ss_eval[idx] = 1.0;
     }
@@ -1498,12 +1500,12 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     int distance = (nevMax + 2 * block_size)                                  /* ss_eval */
                    + (nevInit + 2 * block_size)                               /* ss_diag */
                    + (nevInit + 2 * block_size) * (nevInit + 2 * block_size)  /* ss_matA */
-                   + (nevInit + 2 * block_size) * (nevInit + 1 * block_size); /* ss_evec */
+                   + (nevInit + 2 * block_size) * (nevInit + 1 * block_size); /* ss_evec */   // 为什么是 1*block_size?
     /* dbl_ws 包含 W 的部分 */
     dbl_ws = gcg_solver->dbl_ws + distance;
     gcg_solver->length_dbl_ws = (nevMax + 2 * block_size)                                     /* ss_eval */
-                                + 2 * (nevInit + 2 * block_size) * (nevInit + 2 * block_size) /* ss_matA ss_evec */
-                                + 10 * (nevInit + 2 * block_size)                             /* ss_diag WORK */
+                                + 2 * (nevInit + 2 * block_size) * (nevInit + 2 * block_size) /* ss_matA ss_evec */   // 从这里看1*block_size应该是写错了
+                                + 10 * (nevInit + 2 * block_size)                             /* ss_diag WORK */    // 为什么是 10*?
                                 + nevMax * block_size;                                        /* for orth */
 #if 0
 	ops_gcg->Printf ( "gcg_solver->length_dbl_ws = %d\n", gcg_solver->length_dbl_ws );
@@ -1511,7 +1513,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 
 #if 1
     offsetP = gcg_solver->int_ws;
-    offsetW = offsetP + block_size + 3;
+    offsetW = offsetP + block_size + 3;  // 为什么是 +3?
     int_ws = offsetW + block_size + 3;
 #else
     int_ws = gcg_solver->int_ws;

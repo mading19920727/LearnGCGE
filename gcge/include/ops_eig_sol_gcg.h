@@ -32,7 +32,7 @@ typedef struct GCGSolver_ {
 	int    numIter; // 当前迭代次数
 	int    sizeV;	// V矩阵的理论列数 
 	void   **mv_ws[4]; // 多向量内存空间 0: V,
-	double *dbl_ws;    // 双精度内存空间，2*sizeV*sizeV + 2*sizeV, 用于存储子空间投影问题的矩阵和对角元，求得的特征向量和特征值
+	double *dbl_ws;    // 双精度内存空间，2*sizeV*sizeV + 2*sizeV, 用于存储子空间投影问题的矩阵和对角元，求得的特征向量和特征值，顺序：[特征值 对角元 矩阵 特征向量] 
 	int *int_ws;	   // 整型内存空间
 	int  length_dbl_ws;// 双精度内存空间数组长度
 	int  check_conv_max_num;
