@@ -78,6 +78,25 @@ typedef struct OPS_ {
 	void (*MultiVecLocalInnerProd) (char nsdIP, 
 			void **x, void **y, int is_vec, int *start, int *end, 
 			double *inner_prod, int ldIP, struct OPS_ *ops);
+    /**
+     * @brief 计算多个向量的内积
+     * 
+     * 该函数是对MultiVecLocalInnerProd的封装，用于计算多个向量的内积。
+     * 适用于需要分块计算或并行计算的情景，通过start/end参数指定计算范围。
+     * 
+     * @param[in] nsdIP     字符参数，指定内积存储方式（例如'S'表示对称存储）
+     * @param[in] x         输入向量/矩阵
+     * @param[in] y         输入向量/矩阵
+     * @param[in] is_vec    向量模式标志位（0-矩阵模式，1-向量模式）
+     * @param[in] start     计算区间的起始索引数组
+     * @param[in] end       计算区间的结束索引数组
+     * @param[out] inner_prod 输出内积结果数组（需预先分配内存）
+     * @param[in] ldIP      inner_prod数组的leading dimension
+     * @param[in] ops       运算控制参数结构体指针
+     * 
+     * @note 实际计算工作由MultiVecLocalInnerProd函数完成
+     * @warning start/end数组长度应与计算分块数量匹配
+     */
 	void (*MultiVecInnerProd)      (char nsdIP, 
 			void **x, void **y, int is_vec, int *start, int *end, 
 			double *inner_prod, int ldIP, struct OPS_ *ops);
@@ -94,12 +113,24 @@ typedef struct OPS_ {
      */
 	void (*MultiVecSetRandomValue) (void **multi_vec, 
 			int    start , int  end , struct OPS_ *ops);
-    /* y = alpha x + beta y */
-	void (*MultiVecAxpby)          (
-			double alpha , void **x , double beta, void **y, 
-			int    *start, int  *end, struct OPS_ *ops);
+    /**
+     * @brief 计算多列向量的线性组合：y = alpha * x + beta * y
+     *
+     * 对指定列范围内的向量进行BLAS风格的axpby操作，支持矩阵列向量批量处理。
+     * 当beta=0时执行向量初始化+累加操作，当x=NULL时仅执行向量缩放操作。
+     * 
+     * @param alpha 标量系数，作用于x向量
+     * @param x 输入向量/矩阵。当为NULL时仅对y执行beta缩放操作
+     * @param beta 标量系数，作用于y向量
+     * @param y 输入输出向量/矩阵。操作结果将直接修改此数据
+     * @param start 二维数组，start[0]表示x的起始列，start[1]表示y的起始列
+     * @param end 二维数组，end[0]表示x的结束列，end[1]表示y的结束列
+     * @param ops 操作接口
+     */
+    void (*MultiVecAxpby) (
+            double alpha , void **x , double beta, void **y, 
+            int    *start, int  *end, struct OPS_ *ops);
 	/* y = x coef + y diag(beta) */
-
     /**
     * @brief 执行向量/矩阵的线性组合计算 y = beta*y + x*coef
     * 
@@ -121,7 +152,18 @@ typedef struct OPS_ {
         int *start, int *end,
         double *coef, int ldc,
         double *beta, int incb, struct OPS_ *ops);
-    void (*MatDotMultiVec)      (void *mat, void **x, void **y, 
+
+    /**
+     * @brief 计算矩阵块与向量块的乘积，并将结果累加到目标向量块中 y = mat * x
+     *
+     * @param mat   输入矩阵指针。若为NULL，则执行向量块复制操作而非矩阵乘法
+     * @param x     输入向量指针，要求数据连续存储（nrows == ldd）
+     * @param y     输出向量指针，要求数据连续存储（nrows == ldd）
+     * @param start 起始索引数组，start[0]为x向量的起始列，start[1]为y向量的起始列
+     * @param end   结束索引数组，end[0]为x向量的结束列，end[1]为y向量的结束列
+     * @param ops   操作接口
+     */
+    void (*MatDotMultiVec) (void *mat, void **x, void **y, 
 			int  *start, int *end, struct OPS_ *ops);
 	void (*MatTransDotMultiVec) (void *mat, void **x, void **y, 
 			int  *start, int *end, struct OPS_ *ops);

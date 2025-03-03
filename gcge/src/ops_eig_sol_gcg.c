@@ -33,6 +33,9 @@ static int sizeP, startP, endP;
 static int sizeW, startW, endW;
 static int sizeC, sizeX, sizeV, endX;
 
+// 矩阵运算的临时空间
+// mv_ws[0]: 用于存放A *  ritz_vec结果
+// mv_ws[1]: 用于存放B *  ritz_vec结果
 static void **mv_ws[3];
 static double *dbl_ws;
 static int *int_ws;
@@ -208,6 +211,18 @@ static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec) {
     return;
 }
 
+/**
+ * @brief 检查收敛性
+ * 
+ * @param A 矩阵A
+ * @param B 矩阵B
+ * @param ss_eval 子空间问题的特征值（与原空间特征值相同）
+ * @param ritz_vec 特征向量
+ * @param numCheck 要检查的特征向量列数
+ * @param tol 收敛容差
+ * @param offset 
+ * @return int 返回已经收敛的特征值个数
+ */
 static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
                             int numCheck, double *tol, int *offset) {
 #if TIME_GCG
@@ -223,21 +238,24 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
     end[0] = start[0] + numCheck;
     start[1] = 0;
     end[1] = numCheck;
+    // 计算A * ritz_vec
     ops_gcg->MatDotMultiVec(A, ritz_vec, mv_ws[0], start, end, ops_gcg);
+    // 计算B * ritz_vec
     ops_gcg->MatDotMultiVec(B, ritz_vec, mv_ws[1], start, end, ops_gcg);
-    /* lambda Bx */
-    ops_gcg->MultiVecLinearComb(NULL, mv_ws[1], 0, start, end,
-                                NULL, 0, ss_eval + startN, 1, ops_gcg);
+    // 计算 lambda * B * ritz_vec
+    ops_gcg->MultiVecLinearComb(NULL, mv_ws[1], 0, start, end, NULL, 0, ss_eval + startN, 1, ops_gcg);
     start[0] = 0;
     end[0] = numCheck;
     start[1] = 0;
     end[1] = numCheck;
-    /* Ax - lambda Bx */
+    /* 计算 Ax - lambda Bx */
     ops_gcg->MultiVecAxpby(-1.0, mv_ws[1], 1.0, mv_ws[0], start, end, ops_gcg);
     /* 不使用 ss_evec 部分 */
-    inner_prod = dbl_ws + (sizeV - sizeC) * sizeW;
+    inner_prod = dbl_ws + (sizeV - sizeC) * sizeW; // inner_prod为内积结果的存储首地址
+    // 计算numCheck个残差向量的2范数的平方
     ops_gcg->MultiVecInnerProd('D', mv_ws[0], mv_ws[0], 0,
                                start, end, inner_prod, 1, ops_gcg);
+    // 计算numCheck个残差向量的2范数
     for (idx = 0; idx < numCheck; ++idx) {
         inner_prod[idx] = sqrt(inner_prod[idx]);
 #if DEBUG
@@ -246,6 +264,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
                         inner_prod[idx], inner_prod[idx] / fabs(ss_eval[startN + idx]));
 #endif
     }
+    // 判断绝对残量 和 相对残量是否满足收敛条件
     for (idx = 0; idx < numCheck; ++idx) {
         /* 绝对残量 和 相对残量 需分别小于 tol[0] 和 tol[1] */
         if (fabs(ss_eval[startN + idx]) > tol[1]) {
@@ -269,30 +288,36 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
             }
         }
     }
+    // 获取不是重根的第一个不收敛的特征值索引
     for (; idx > 0; --idx) {
         /* 最后一个收敛的特征值与第一个不收敛的特征值不是重根 */
         if (fabs((ss_eval[startN + idx - 1] - ss_eval[startN + idx]) / ss_eval[startN + idx - 1]) > gcg_solver->gapMin) {
             break;
         }
     }
+    // 计算当前收敛的特征值总个数
     nevConv = sizeC + idx;
 
-    /* offset[0] 为未收敛块的个数, offset[2n-1] <= idx < offset[2n]
-     * idx 是不收敛的标号 1 <= n <= offset[0] */
-    int state, num_unconv;
+    // offset[0]：记录未收敛区间的个数
+    // offset[2n-1] 和 offset[2n]：分别表示第 n 个未收敛区间的起始和结束位置，1 <= n <= offset[0]。
+    // offset[2n-1] <= idx < offset[2n]中 idx 是不收敛的标号
+    int state; // 标记当前状态，1 表示当前处于收敛状态，0 表示当前处于未收敛状态
+    int num_unconv; // 标记当前未收敛区间的长度
     /* 1 1 0 0 1 1 1 1 0 0 1 0 1 0 0 0 0 0 0 */
-    offset[0] = 0;
+    offset[0] = 0; // 未收敛区间的个数
     state = 1;
     num_unconv = 0;
     for (idx = 0; idx < numCheck; ++idx) {
         /* 这一个是不收敛的 */
-        if (inner_prod[idx] > tol[0] ||
-            inner_prod[idx] > fabs(ss_eval[startN + idx]) * tol[1]) {
+        if (inner_prod[idx] > tol[0] || inner_prod[idx] > fabs(ss_eval[startN + idx]) * tol[1]) {
             /* 上一个是收敛的 */
             if (state) {
+                // 记录当前未收敛区间的起始位置
                 offset[offset[0] * 2 + 1] = startN + idx;
+                // 标记未收敛
                 state = 0;
             }
+            // 增加未收敛区间的长度
             ++num_unconv;
             if (num_unconv == sizeN) {
                 offset[offset[0] * 2 + 2] = startN + idx + 1;
@@ -308,6 +333,8 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
             }
         }
     }
+
+    // sizeN: 未收敛区间的最大允许长度
     if (num_unconv < sizeN) {
         if (state == 1) {
             offset[offset[0] * 2 + 1] = startN + numCheck;
@@ -328,6 +355,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
                         offset[idx * 2 + 1], offset[idx * 2 + 2]);
     }
 #endif
+    // 需要存在未收敛区间
     assert(offset[0] > 0);
     return nevConv;
 }
@@ -1507,8 +1535,8 @@ static void GCG(void *A, void *B, double *eval, void **evec,
                                 + 2 * (nevInit + 2 * block_size) * (nevInit + 2 * block_size) /* ss_matA ss_evec */   // 从这里看1*block_size应该是写错了
                                 + 10 * (nevInit + 2 * block_size)                             /* ss_diag WORK */    // 为什么是 10*?
                                 + nevMax * block_size;                                        /* for orth */
-#if 0
-	ops_gcg->Printf ( "gcg_solver->length_dbl_ws = %d\n", gcg_solver->length_dbl_ws );
+#if DEBUG
+    ops_gcg->Printf ( "gcg_solver->length_dbl_ws = %d\n", gcg_solver->length_dbl_ws );
 #endif
 
 #if 1
@@ -1534,8 +1562,8 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     time_gcg.linsol_time = 0.0;
 #endif
 
-#if 0
-	ops_gcg->Printf("initial X\n");
+#if DEBUG
+    ops_gcg->Printf("initial X\n");
 #endif
     /* 对 X 赋随机初值且 B-正交归一化 */
     InitializeX(V, ritz_vec, B, nevGiven);
@@ -1544,8 +1572,8 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     int row, col;
 #endif
 
-#if 0
-	ops_gcg->Printf("ComputeRayleighRitz\n");
+#if DEBUG
+    ops_gcg->Printf("ComputeRayleighRitz\n");
 #endif
     ComputeRayleighRitz(ss_matA, ss_eval, ss_evec,
                         gcg_solver->compRR_tol, 0, ss_diag, A, V);

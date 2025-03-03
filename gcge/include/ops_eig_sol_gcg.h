@@ -22,7 +22,7 @@ typedef struct GCGSolver_ {
 	void   **evec;	// 特征向量二维数组，分配向量个数 nevMax + block_size
 	int    nevMax;  // 整个任务所要求的特征对个数
 	int   multiMax; 
-	double gapMin;
+	double gapMin; // 两个特征值间认为不是重根的最小间隔
 	int    nevInit; // 初始选取X矩阵的列数
 	int   nevGiven; // 当前批次求解前，收敛特征对的总个数
 	int    nevConv;	// 当前批次求解后，收敛特征对的总个数
