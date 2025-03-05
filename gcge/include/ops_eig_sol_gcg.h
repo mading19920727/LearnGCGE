@@ -35,7 +35,7 @@ typedef struct GCGSolver_ {
 	double *dbl_ws;    // 双精度内存空间，2*sizeV*sizeV + 2*sizeV, 用于存储子空间投影问题的矩阵和对角元，求得的特征向量和特征值，顺序：[特征值 对角元 矩阵 特征向量] 
 	int *int_ws;	   // 整型内存空间
 	int  length_dbl_ws;// 双精度内存空间数组长度
-	int  check_conv_max_num;
+	int  check_conv_max_num; // 单次检查收敛性的最大特征对个数
 	
 	char initX_orth_method[8] ; 
 	int    initX_orth_block_size; 
@@ -54,7 +54,7 @@ typedef struct GCGSolver_ {
 	int  compW_cg_max_iter    ; 
 	double compW_cg_rate; 
 	double compW_cg_tol       ; 
-	char   compW_cg_tol_type[8];
+	char   compW_cg_tol_type[8]; // 计算W是用的CG法中收敛容差的判断方式(abs or rel)
 	int  compW_cg_auto_shift  ; // 是否自动按照内置公式计算shift
 	double compW_cg_shift;      // 王博士认为这个成员变量是多余的，没有实际作用
 	int  compW_cg_order       ; // 用于是否调用ComputeW12（冗余的函数）的判断，可删去
