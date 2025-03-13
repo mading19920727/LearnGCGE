@@ -7,22 +7,17 @@
 #include <petscdmtypes.h>
 #include <petscfvtypes.h>
 #include <petscdmdatypes.h>
+#include <petscsnestypes.h>
 
 /* SUBMANSEC = SNES */
 
-/*S
-   SNES - Abstract PETSc object that manages nonlinear solves
-
-   Level: beginner
-
-.seealso: [](doc_nonlinsolve), [](ch_snes), `SNESCreate()`, `SNESSetType()`, `SNESType`, `TS`, `SNES`, `KSP`, `PC`, `SNESDestroy()`
-S*/
-typedef struct _p_SNES *SNES;
-
 /*J
-   SNESType - String with the name of a PETSc `SNES` method.
+   SNESType - String with the name of a PETSc `SNES` method. These are all the nonlinear solvers that PETSc provides.
 
    Level: beginner
+
+   Note:
+   Use `SNESSetType()` or the options database key `-snes_type` to set the specific nonlinear solver algorithm to use with a given `SNES` object
 
 .seealso: [](doc_nonlinsolve), [](ch_snes), `SNESSetType()`, `SNES`, `SNESCreate()`, `SNESDestroy()`, `SNESSetFromOptions()`
 J*/
@@ -48,6 +43,7 @@ typedef const char *SNESType;
 #define SNESASPIN            "aspin"
 #define SNESCOMPOSITE        "composite"
 #define SNESPATCH            "patch"
+#define SNESNEWTONAL         "newtonal"
 
 /* Logging support */
 PETSC_EXTERN PetscClassId SNES_CLASSID;
@@ -57,6 +53,7 @@ PETSC_EXTERN PetscErrorCode SNESInitializePackage(void);
 PETSC_EXTERN PetscErrorCode SNESFinalizePackage(void);
 
 PETSC_EXTERN PetscErrorCode SNESCreate(MPI_Comm, SNES *);
+PETSC_EXTERN PetscErrorCode SNESParametersInitialize(SNES);
 PETSC_EXTERN PetscErrorCode SNESReset(SNES);
 PETSC_EXTERN PetscErrorCode SNESDestroy(SNES *);
 PETSC_EXTERN PetscErrorCode SNESSetType(SNES, SNESType);
@@ -78,8 +75,6 @@ PETSC_EXTERN PetscErrorCode SNESConverged(SNES, PetscInt, PetscReal, PetscReal, 
 PETSC_EXTERN PetscErrorCode SNESSetWorkVecs(SNES, PetscInt);
 
 PETSC_EXTERN PetscErrorCode SNESAddOptionsChecker(PetscErrorCode (*)(SNES));
-
-PETSC_EXTERN PetscErrorCode SNESSetUpdate(SNES, PetscErrorCode (*)(SNES, PetscInt));
 
 PETSC_EXTERN PetscErrorCode SNESRegister(const char[], PetscErrorCode (*)(SNES));
 
@@ -146,7 +141,6 @@ PETSC_EXTERN PetscErrorCode SNESSetTolerances(SNES, PetscReal, PetscReal, PetscR
 PETSC_EXTERN PetscErrorCode SNESSetDivergenceTolerance(SNES, PetscReal);
 PETSC_EXTERN PetscErrorCode SNESGetTolerances(SNES, PetscReal *, PetscReal *, PetscReal *, PetscInt *, PetscInt *);
 PETSC_EXTERN PetscErrorCode SNESGetDivergenceTolerance(SNES, PetscReal *);
-PETSC_EXTERN PetscErrorCode SNESSetTrustRegionTolerance(SNES, PetscReal);
 PETSC_EXTERN PetscErrorCode SNESGetForceIteration(SNES, PetscBool *);
 PETSC_EXTERN PetscErrorCode SNESSetForceIteration(SNES, PetscBool);
 PETSC_EXTERN PetscErrorCode SNESGetIterationNumber(SNES, PetscInt *);
@@ -203,6 +197,12 @@ PETSC_EXTERN const char *const SNESNewtonTRQNTypes[];
 
 PETSC_EXTERN PetscErrorCode SNESNewtonTRSetQNType(SNES, SNESNewtonTRQNType);
 
+PETSC_EXTERN PETSC_DEPRECATED_FUNCTION(3, 22, 0, "SNESNewtonTRSetTolerances()", ) PetscErrorCode SNESSetTrustRegionTolerance(SNES, PetscReal);
+PETSC_EXTERN PetscErrorCode SNESNewtonTRSetTolerances(SNES, PetscReal, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode SNESNewtonTRGetTolerances(SNES, PetscReal *, PetscReal *, PetscReal *);
+PETSC_EXTERN PetscErrorCode SNESNewtonTRSetUpdateParameters(SNES, PetscReal, PetscReal, PetscReal, PetscReal, PetscReal);
+PETSC_EXTERN PetscErrorCode SNESNewtonTRGetUpdateParameters(SNES, PetscReal *, PetscReal *, PetscReal *, PetscReal *, PetscReal *);
+
 PETSC_EXTERN PetscErrorCode SNESNewtonTRDCGetRhoFlag(SNES, PetscBool *);
 PETSC_EXTERN PetscErrorCode SNESNewtonTRDCSetPreCheck(SNES, PetscErrorCode (*)(SNES, Vec, Vec, PetscBool *, void *), void *ctx);
 PETSC_EXTERN PetscErrorCode SNESNewtonTRDCGetPreCheck(SNES, PetscErrorCode (**)(SNES, Vec, Vec, PetscBool *, void *), void **ctx);
@@ -228,6 +228,7 @@ PETSC_EXTERN PetscErrorCode SNESGetLinearSolveFailures(SNES, PetscInt *);
 PETSC_EXTERN PetscErrorCode SNESSetMaxLinearSolveFailures(SNES, PetscInt);
 PETSC_EXTERN PetscErrorCode SNESGetMaxLinearSolveFailures(SNES, PetscInt *);
 PETSC_EXTERN PetscErrorCode SNESSetCountersReset(SNES, PetscBool);
+PETSC_EXTERN PetscErrorCode SNESResetCounters(SNES);
 
 PETSC_EXTERN PetscErrorCode SNESKSPSetUseEW(SNES, PetscBool);
 PETSC_EXTERN PetscErrorCode SNESKSPGetUseEW(SNES, PetscBool *);
@@ -271,10 +272,11 @@ PETSC_EXTERN PetscErrorCode SNESGetCheckJacobianDomainError(SNES, PetscBool *);
    Level: beginner
 
     Notes:
-   The two most common reasons for divergence are an incorrectly coded or computed Jacobian or failure or lack of convergence in the linear system (in this case we recommend
+   The two most common reasons for divergence are an incorrectly coded or computed Jacobian or failure or lack of convergence in the linear system
+   (in this case we recommend
    testing with `-pc_type lu` to eliminate the linear solver as the cause of the problem).
 
-   `SNES_DIVERGED_LOCAL_MIN` can only occur when using the line-search variant of `SNES`.
+   `SNES_DIVERGED_LOCAL_MIN` can only occur when using a `SNES` solver that uses a line search (`SNESLineSearch`).
    The line search wants to minimize Q(alpha) = 1/2 || F(x + alpha s) ||^2_2  this occurs
    at Q'(alpha) = s^T F'(x+alpha s)^T F(x+alpha s) = 0. If s is the Newton direction - F'(x)^(-1)F(x) then
    you get Q'(alpha) = -F(x)^T F'(x)^(-1)^T F'(x+alpha s)F(x+alpha s); when alpha = 0
@@ -504,6 +506,19 @@ PETSC_EXTERN_TYPEDEF typedef PetscErrorCode(SNESJacobianFn)(SNES snes, Vec u, Ma
 S*/
 PETSC_EXTERN_TYPEDEF typedef PetscErrorCode(SNESNGSFn)(SNES snes, Vec u, Vec b, void *ctx);
 
+/*S
+  SNESUpdateFn - A prototype of a `SNES` update function that would be passed to `SNESSetUpdate()`
+
+  Calling Sequence:
++ snes - `SNES` context
+- step - the current iteration index
+
+  Level: advanced
+
+.seealso: [](ch_snes), `SNES`, `SNESSetUpdate()`
+S*/
+PETSC_EXTERN_TYPEDEF typedef PetscErrorCode(SNESUpdateFn)(SNES snes, PetscInt step);
+
 /* --------- Solving systems of nonlinear equations --------------- */
 PETSC_EXTERN PetscErrorCode SNESSetFunction(SNES, Vec, SNESFunctionFn *, void *);
 PETSC_EXTERN PetscErrorCode SNESGetFunction(SNES, Vec *, SNESFunctionFn **, void **);
@@ -527,6 +542,8 @@ PETSC_EXTERN SNESJacobianFn SNESPicardComputeJacobian;
 PETSC_EXTERN PetscErrorCode SNESSetObjective(SNES, SNESObjectiveFn *, void *);
 PETSC_EXTERN PetscErrorCode SNESGetObjective(SNES, SNESObjectiveFn **, void **);
 PETSC_EXTERN PetscErrorCode SNESComputeObjective(SNES, Vec, PetscReal *);
+
+PETSC_EXTERN PetscErrorCode SNESSetUpdate(SNES, SNESUpdateFn *);
 
 /*E
    SNESNormSchedule - Frequency with which the norm is computed during a nonliner solve
@@ -687,17 +704,22 @@ S*/
 typedef struct _p_LineSearch *SNESLineSearch;
 
 /*J
-   SNESLineSearchType - String with the name of a PETSc line search method `SNESLineSearch`
+   SNESLineSearchType - String with the name of a PETSc line search method `SNESLineSearch`. Provides all the linesearches for the nonlinear solvers, `SNES`,
+                        in PETSc.
 
    Values:
 +  `SNESLINESEARCHBASIC`   - (or equivalently `SNESLINESEARCHNONE`) Simple damping line search, defaults to using the full Newton step
 .  `SNESLINESEARCHBT`      - Backtracking line search over the L2 norm of the function
 .  `SNESLINESEARCHL2`      - Secant line search over the L2 norm of the function
-.  `SNESLINESEARCHCP`      - Critical point secant line search assuming F(x) = grad G(x) for some unknown G(x)
+.  `SNESLINESEARCHCP`      - Critical point secant line search assuming $F(x) = \nabla G(x)$ for some unknown $G(x)$
 .  `SNESLINESEARCHNLEQERR` - Affine-covariant error-oriented linesearch
 -  `SNESLINESEARCHSHELL`   - User provided `SNESLineSearch` implementation
 
    Level: beginner
+
+   Note:
+   Use `SNESLineSearchSetType()` or the options database key `-snes_linesearch_type` to set
+   the specific line search algorithm to use with a given `SNES` object. Not all `SNESType` can utilize a line search.
 
 .seealso: [](ch_snes), `SNESLineSearch`, `SNESLineSearchSetType()`, `SNES`
 J*/
@@ -1167,6 +1189,20 @@ PETSC_EXTERN PetscErrorCode SNESNASMGetSNES(SNES, PetscInt, SNES *);
 PETSC_EXTERN PetscErrorCode SNESNASMGetNumber(SNES, PetscInt *);
 PETSC_EXTERN PetscErrorCode SNESNASMSetWeight(SNES, Vec);
 
+/*E
+  SNESCompositeType - Determines how two or more preconditioners are composed with the `SNESType` of `SNESCOMPOSITE`
+
+  Values:
++ `SNES_COMPOSITE_ADDITIVE`        - results from application of all preconditioners are added together
+. `SNES_COMPOSITE_MULTIPLICATIVE`  - preconditioners are applied sequentially to the residual freshly
+                                     computed after the previous preconditioner application
+- `SNES_COMPOSITE_ADDITIVEOPTIMAL` - uses a linear combination of the solutions obtained with each preconditioner that approximately minimize the function
+                                     value at the new iteration.
+
+   Level: beginner
+
+.seealso: [](sec_pc), `PCCOMPOSITE`, `PCFIELDSPLIT`, `PC`, `PCCompositeSetType()`, `PCCompositeType`
+E*/
 typedef enum {
   SNES_COMPOSITE_ADDITIVE,
   SNES_COMPOSITE_MULTIPLICATIVE,
@@ -1264,3 +1300,34 @@ PETSC_EXTERN PetscErrorCode DMSNESCheckJacobian(SNES, DM, Vec, PetscReal, PetscB
 PETSC_EXTERN PetscErrorCode DMSNESCheckFromOptions(SNES, Vec);
 PETSC_EXTERN PetscErrorCode DMSNESComputeJacobianAction(DM, Vec, Vec, Vec, void *);
 PETSC_EXTERN PetscErrorCode DMSNESCreateJacobianMF(DM, Vec, void *, Mat *);
+
+PETSC_EXTERN PetscErrorCode SNESNewtonALSetFunction(SNES, SNESFunctionFn *, void *ctx);
+PETSC_EXTERN PetscErrorCode SNESNewtonALGetFunction(SNES, SNESFunctionFn **, void **ctx);
+PETSC_EXTERN PetscErrorCode SNESNewtonALComputeFunction(SNES, Vec, Vec);
+PETSC_EXTERN PetscErrorCode SNESNewtonALGetLoadParameter(SNES, PetscReal *);
+
+/*MC
+   SNESNewtonALCorrectionType - the approach used by `SNESNEWTONAL` to determine
+   the correction to the current increment. While the exact correction satisfies
+   the constraint surface at every iteration, it also requires solving a quadratic
+   equation which may not have real roots. Conversely, the normal correction is more
+   efficient and always yields a real correction and is the default.
+
+   Values:
++   `SNES_NEWTONAL_CORRECTION_EXACT` - choose the correction which exactly satisfies the constraint
+-   `SNES_NEWTONAL_CORRECTION_NORMAL` - choose the correction in the updated normal hyper-surface to the constraint surface
+
+   Options Database Key:
+. -snes_newtonal_correction_type <exact> - select type from <exact,normal>
+
+   Level: intermediate
+
+.seealso: `SNES`, `SNESNEWTONAL`, `SNESNewtonALSetCorrectionType()`
+M*/
+typedef enum {
+  SNES_NEWTONAL_CORRECTION_EXACT  = 0,
+  SNES_NEWTONAL_CORRECTION_NORMAL = 1,
+} SNESNewtonALCorrectionType;
+PETSC_EXTERN const char *const SNESNewtonALCorrectionTypes[];
+
+PETSC_EXTERN PetscErrorCode SNESNewtonALSetCorrectionType(SNES, SNESNewtonALCorrectionType);

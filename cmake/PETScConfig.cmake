@@ -1,14 +1,16 @@
 # 定义 PETSc 作为 INTERFACE 库
 add_library(petsc INTERFACE)
 
+set(PETSC_DIR ${PROJECT_SOURCE_DIR}/3rd/petsc/) # 不能用/f/zzy/petsc，否则会报错  
+
 # 判断当前系统
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set(PETSC_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/3rd/petsc/windows/include)
-    set(PETSC_LIB_DIR ${PROJECT_SOURCE_DIR}/3rd/petsc/windows/bin)
-    set(PETSC_LIB_NAME petsc-dmo)
+    set(PETSC_INCLUDE_DIR ${PETSC_DIR}/windows/include)
+    set(PETSC_LIB_DIR ${PETSC_DIR}/windows/lib)
+    set(PETSC_LIB_NAME petsc)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(PETSC_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/3rd/petsc/linux/include)
-    set(PETSC_LIB_DIR ${PROJECT_SOURCE_DIR}/3rd/petsc/linux/lib)
+    set(PETSC_INCLUDE_DIR ${PETSC_DIR}/linux/include)
+    set(PETSC_LIB_DIR ${PETSC_DIR}/linux/lib)
     set(PETSC_LIB_NAME petsc)
 else()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")

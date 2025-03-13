@@ -2,6 +2,7 @@
       Objects to manage the interactions between the mesh data structures and the algebraic objects
 */
 #pragma once
+#include "petscsystypes.h"
 #include <petscmat.h>
 #include <petscdmtypes.h>
 #include <petscfetypes.h>
@@ -18,11 +19,15 @@ PETSC_EXTERN PetscClassId DM_CLASSID;
 #define DMLOCATEPOINT_POINT_NOT_FOUND -367
 
 /*J
-    DMType - String with the name of a PETSc `DM`
+   DMType - String with the name of a PETSc `DM`. These are all the `DM` provided by PETSc.
 
    Level: beginner
 
-.seealso: [](ch_dmbase), `DMSetType()`, `DMCreate()`, `DM`
+   Note:
+   These can be used with `DMSetType()` or the options database key `-dm_type` to set the specific data structures and algorithms to use with a specific `DM`.
+   But more commonly one calls directly a constructor for a particular `DMType` such as `DMDACreate()`
+
+.seealso: [](ch_dmbase), `DMSetType()`, `DMCreate()`, `DM`, `DMDACreate()`
 J*/
 typedef const char *DMType;
 #define DMDA        "da"
@@ -46,6 +51,7 @@ PETSC_EXTERN const char *const       DMBoundaryConditionTypes[];
 PETSC_EXTERN const char *const       DMBlockingTypes[];
 PETSC_EXTERN PetscFunctionList       DMList;
 PETSC_EXTERN DMGeneratorFunctionList DMGenerateList;
+PETSC_EXTERN PetscFunctionList       DMGeomModelList;
 PETSC_EXTERN PetscErrorCode          DMCreate(MPI_Comm, DM *);
 PETSC_EXTERN PetscErrorCode          DMClone(DM, DM *);
 PETSC_EXTERN PetscErrorCode          DMSetType(DM, DMType);
@@ -86,7 +92,7 @@ PETSC_EXTERN PetscErrorCode DMCreateInterpolation(DM, DM, Mat *, Vec *);
 PETSC_EXTERN PetscErrorCode DMCreateRestriction(DM, DM, Mat *);
 PETSC_EXTERN PetscErrorCode DMCreateInjection(DM, DM, Mat *);
 PETSC_EXTERN PetscErrorCode DMCreateMassMatrix(DM, DM, Mat *);
-PETSC_EXTERN PetscErrorCode DMCreateMassMatrixLumped(DM, Vec *);
+PETSC_EXTERN PetscErrorCode DMCreateMassMatrixLumped(DM, Vec *, Vec *);
 PETSC_EXTERN PetscErrorCode DMGetWorkArray(DM, PetscInt, MPI_Datatype, void *);
 PETSC_EXTERN PetscErrorCode DMRestoreWorkArray(DM, PetscInt, MPI_Datatype, void *);
 PETSC_EXTERN PetscErrorCode DMRefine(DM, MPI_Comm, DM *);
@@ -112,6 +118,9 @@ PETSC_EXTERN PetscErrorCode DMGenerate(DM, const char[], PetscBool, DM *);
 PETSC_EXTERN PetscErrorCode DMGenerateRegister(const char[], PetscErrorCode (*)(DM, PetscBool, DM *), PetscErrorCode (*)(DM, PetscReal *, DM *), PetscErrorCode (*)(DM, Vec, DMLabel, DMLabel, DM *), PetscInt);
 PETSC_EXTERN PetscErrorCode DMGenerateRegisterAll(void);
 PETSC_EXTERN PetscErrorCode DMGenerateRegisterDestroy(void);
+PETSC_EXTERN PetscErrorCode DMGeomModelRegister(const char[], PetscErrorCode (*)(DM, PetscInt, PetscInt, const PetscScalar[], PetscScalar[]));
+PETSC_EXTERN PetscErrorCode DMGeomModelRegisterAll(void);
+PETSC_EXTERN PetscErrorCode DMGeomModelRegisterDestroy(void);
 PETSC_EXTERN PetscErrorCode DMAdaptLabel(DM, DMLabel, DM *);
 PETSC_EXTERN PetscErrorCode DMAdaptMetric(DM, Vec, DMLabel, DMLabel, DM *);
 
@@ -168,6 +177,8 @@ PETSC_EXTERN PetscErrorCode DMGetLocalBoundingBox(DM, PetscReal[], PetscReal[]);
 PETSC_EXTERN PetscErrorCode DMGetBoundingBox(DM, PetscReal[], PetscReal[]);
 PETSC_EXTERN PetscErrorCode DMSetCoordinateDisc(DM, PetscFE, PetscBool);
 PETSC_EXTERN PetscErrorCode DMLocatePoints(DM, Vec, DMPointLocationType, PetscSF *);
+PETSC_EXTERN PetscErrorCode DMSnapToGeomModel(DM, PetscInt, PetscInt, const PetscScalar[], PetscScalar[]);
+PETSC_EXTERN PetscErrorCode DMSetSnapToGeomModel(DM, const char[]);
 
 /* Periodicity support */
 PETSC_EXTERN PetscErrorCode DMGetPeriodicity(DM, const PetscReal *[], const PetscReal *[], const PetscReal *[]);
@@ -176,6 +187,8 @@ PETSC_EXTERN PetscErrorCode DMLocalizeCoordinate(DM, const PetscScalar[], PetscB
 PETSC_EXTERN PetscErrorCode DMLocalizeCoordinates(DM);
 PETSC_EXTERN PetscErrorCode DMGetCoordinatesLocalized(DM, PetscBool *);
 PETSC_EXTERN PetscErrorCode DMGetCoordinatesLocalizedLocal(DM, PetscBool *);
+PETSC_EXTERN PetscErrorCode DMGetSparseLocalize(DM, PetscBool *);
+PETSC_EXTERN PetscErrorCode DMSetSparseLocalize(DM, PetscBool);
 
 /* block hook interface */
 PETSC_EXTERN PetscErrorCode DMSubDomainHookAdd(DM, PetscErrorCode (*)(DM, DM, void *), PetscErrorCode (*)(DM, VecScatter, VecScatter, DM, void *), void *);
@@ -292,7 +305,8 @@ PETSC_EXTERN PetscErrorCode DMSetDefaultConstraints(DM, PetscSection, Mat, Vec);
 PETSC_EXTERN PetscErrorCode DMGetOutputDM(DM, DM *);
 PETSC_EXTERN PetscErrorCode DMGetOutputSequenceNumber(DM, PetscInt *, PetscReal *);
 PETSC_EXTERN PetscErrorCode DMSetOutputSequenceNumber(DM, PetscInt, PetscReal);
-PETSC_EXTERN PetscErrorCode DMOutputSequenceLoad(DM, PetscViewer, const char *, PetscInt, PetscReal *);
+PETSC_EXTERN PetscErrorCode DMOutputSequenceLoad(DM, PetscViewer, const char[], PetscInt, PetscReal *);
+PETSC_EXTERN PetscErrorCode DMGetOutputSequenceLength(DM, PetscViewer, const char[], PetscInt *);
 
 PETSC_EXTERN PetscErrorCode DMGetNumFields(DM, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMSetNumFields(DM, PetscInt);
@@ -302,7 +316,7 @@ PETSC_EXTERN PetscErrorCode DMAddField(DM, DMLabel, PetscObject);
 PETSC_EXTERN PetscErrorCode DMSetFieldAvoidTensor(DM, PetscInt, PetscBool);
 PETSC_EXTERN PetscErrorCode DMGetFieldAvoidTensor(DM, PetscInt, PetscBool *);
 PETSC_EXTERN PetscErrorCode DMClearFields(DM);
-PETSC_EXTERN PetscErrorCode DMCopyFields(DM, DM);
+PETSC_EXTERN PetscErrorCode DMCopyFields(DM, PetscInt, PetscInt, DM);
 PETSC_EXTERN PetscErrorCode DMGetAdjacency(DM, PetscInt, PetscBool *, PetscBool *);
 PETSC_EXTERN PetscErrorCode DMSetAdjacency(DM, PetscInt, PetscBool, PetscBool);
 PETSC_EXTERN PetscErrorCode DMGetBasicAdjacency(DM, PetscBool *, PetscBool *);
@@ -319,7 +333,7 @@ PETSC_EXTERN PetscErrorCode DMFindRegionNum(DM, PetscDS, PetscInt *);
 PETSC_EXTERN PetscErrorCode DMCreateFEDefault(DM, PetscInt, const char[], PetscInt, PetscFE *);
 PETSC_EXTERN PetscErrorCode DMCreateDS(DM);
 PETSC_EXTERN PetscErrorCode DMClearDS(DM);
-PETSC_EXTERN PetscErrorCode DMCopyDS(DM, DM);
+PETSC_EXTERN PetscErrorCode DMCopyDS(DM, PetscInt, PetscInt, DM);
 PETSC_EXTERN PetscErrorCode DMCopyDisc(DM, DM);
 PETSC_EXTERN PetscErrorCode DMComputeExactSolution(DM, PetscReal, Vec, Vec);
 PETSC_EXTERN PetscErrorCode DMGetNumAuxiliaryVec(DM, PetscInt *);

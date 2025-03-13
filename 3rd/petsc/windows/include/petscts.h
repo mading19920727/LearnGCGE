@@ -12,7 +12,7 @@
 /* SUBMANSEC = TS */
 
 /*S
-   TS - Abstract PETSc object that manages all time-steppers (ODE integrators)
+   TS - Abstract PETSc object that manages integrating an ODE.
 
    Level: beginner
 
@@ -21,9 +21,12 @@ S*/
 typedef struct _p_TS *TS;
 
 /*J
-   TSType - String with the name of a PETSc `TS` method.
+   TSType - String with the name of a PETSc `TS` method. These are all the time/ODE integrators that PETSc provides.
 
    Level: beginner
+
+   Note:
+   Use `TSSetType()` or the options database key `-ts_type` to set the ODE integrator method to use with a given `TS` object
 
 .seealso: [](integrator_table), [](ch_ts), `TSSetType()`, `TS`, `TSRegister()`
 J*/
@@ -435,8 +438,11 @@ PETSC_EXTERN PetscErrorCode TSAdjointMonitorDefault(TS, PetscInt, PetscReal, Vec
 PETSC_EXTERN PetscErrorCode TSAdjointMonitorDrawSensi(TS, PetscInt, PetscReal, Vec, PetscInt, Vec *, Vec *, void *);
 
 PETSC_EXTERN PetscErrorCode TSMonitorSolution(TS, PetscInt, PetscReal, Vec, PetscViewerAndFormat *);
-PETSC_EXTERN PetscErrorCode TSMonitorSolutionVTK(TS, PetscInt, PetscReal, Vec, void *);
-PETSC_EXTERN PetscErrorCode TSMonitorSolutionVTKDestroy(void *);
+
+typedef struct _n_TSMonitorVTKCtx *TSMonitorVTKCtx;
+PETSC_EXTERN PetscErrorCode        TSMonitorSolutionVTK(TS, PetscInt, PetscReal, Vec, TSMonitorVTKCtx);
+PETSC_EXTERN PetscErrorCode        TSMonitorSolutionVTKDestroy(TSMonitorVTKCtx *);
+PETSC_EXTERN PetscErrorCode        TSMonitorSolutionVTKCtxCreate(const char *, TSMonitorVTKCtx *);
 
 PETSC_EXTERN PetscErrorCode TSStep(TS);
 PETSC_EXTERN PetscErrorCode TSEvaluateWLTE(TS, NormType, PetscInt *, PetscReal *);
@@ -693,10 +699,14 @@ PETSC_EXTERN PetscErrorCode TSGetI2Jacobian(TS, Mat *, Mat *, TSI2JacobianFn **,
 PETSC_EXTERN PetscErrorCode TSRHSSplitSetIS(TS, const char[], IS);
 PETSC_EXTERN PetscErrorCode TSRHSSplitGetIS(TS, const char[], IS *);
 PETSC_EXTERN PetscErrorCode TSRHSSplitSetRHSFunction(TS, const char[], Vec, TSRHSFunctionFn *, void *);
+PETSC_EXTERN PetscErrorCode TSRHSSplitSetIFunction(TS, const char[], Vec, TSIFunctionFn *, void *);
+PETSC_EXTERN PetscErrorCode TSRHSSplitSetIJacobian(TS, const char[], Mat, Mat, TSIJacobianFn *, void *);
 PETSC_EXTERN PetscErrorCode TSRHSSplitGetSubTS(TS, const char[], TS *);
 PETSC_EXTERN PetscErrorCode TSRHSSplitGetSubTSs(TS, PetscInt *, TS *[]);
 PETSC_EXTERN PetscErrorCode TSSetUseSplitRHSFunction(TS, PetscBool);
 PETSC_EXTERN PetscErrorCode TSGetUseSplitRHSFunction(TS, PetscBool *);
+PETSC_EXTERN PetscErrorCode TSRHSSplitGetSNES(TS, SNES *);
+PETSC_EXTERN PetscErrorCode TSRHSSplitSetSNES(TS, SNES);
 
 PETSC_EXTERN TSRHSFunctionFn TSComputeRHSFunctionLinear;
 PETSC_EXTERN TSRHSJacobianFn TSComputeRHSJacobianConstant;
@@ -721,6 +731,7 @@ PETSC_EXTERN PetscErrorCode TSPostStep(TS);
 PETSC_EXTERN PetscErrorCode TSResize(TS);
 PETSC_EXTERN PetscErrorCode TSResizeRetrieveVec(TS, const char *, Vec *);
 PETSC_EXTERN PetscErrorCode TSResizeRegisterVec(TS, const char *, Vec);
+PETSC_EXTERN PetscErrorCode TSGetStepResize(TS, PetscBool *);
 
 PETSC_EXTERN PetscErrorCode TSInterpolate(TS, PetscReal, Vec);
 PETSC_EXTERN PetscErrorCode TSSetTolerances(TS, PetscReal, Vec, PetscReal, Vec);
@@ -1322,6 +1333,8 @@ PETSC_EXTERN PetscErrorCode TSARKIMEXGetType(TS ts, TSARKIMEXType *);
 PETSC_EXTERN PetscErrorCode TSARKIMEXSetType(TS ts, TSARKIMEXType);
 PETSC_EXTERN PetscErrorCode TSARKIMEXSetFullyImplicit(TS, PetscBool);
 PETSC_EXTERN PetscErrorCode TSARKIMEXGetFullyImplicit(TS, PetscBool *);
+PETSC_EXTERN PetscErrorCode TSARKIMEXSetFastSlowSplit(TS, PetscBool);
+PETSC_EXTERN PetscErrorCode TSARKIMEXGetFastSlowSplit(TS, PetscBool *);
 PETSC_EXTERN PetscErrorCode TSARKIMEXRegister(TSARKIMEXType, PetscInt, PetscInt, const PetscReal[], const PetscReal[], const PetscReal[], const PetscReal[], const PetscReal[], const PetscReal[], const PetscReal[], const PetscReal[], PetscInt, const PetscReal[], const PetscReal[]);
 PETSC_EXTERN PetscErrorCode TSARKIMEXInitializePackage(void);
 PETSC_EXTERN PetscErrorCode TSARKIMEXFinalizePackage(void);
@@ -1367,7 +1380,11 @@ typedef const char *TSRosWType;
 #define TSROSW2P          "2p"
 #define TSROSWRA3PW       "ra3pw"
 #define TSROSWRA34PW2     "ra34pw2"
+#define TSROSWR34PRW      "r34prw"
+#define TSROSWR3PRL2      "r3prl2"
 #define TSROSWRODAS3      "rodas3"
+#define TSROSWRODASPR     "rodaspr"
+#define TSROSWRODASPR2    "rodaspr2"
 #define TSROSWSANDU3      "sandu3"
 #define TSROSWASSP3P3S1C  "assp3p3s1c"
 #define TSROSWLASSP3P4S2C "lassp3p4s2c"

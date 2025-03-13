@@ -22,12 +22,14 @@ S*/
 typedef struct _p_Mat *Mat;
 
 /*J
-   MatType - String with the name of a PETSc matrix type
+   MatType - String with the name of a PETSc matrix type. These are all the matrix formats that PETSc provides.
 
    Level: beginner
 
-   Note:
+   Notes:
    [](doc_matrix) for a table of available matrix types
+
+   Use `MatSetType()` or the options database keys `-mat_type` or `dm_mat_type` to set the matrix format to use for a given `Mat`
 
 .seealso: [](doc_matrix), [](ch_matrices), `MatSetType()`, `Mat`, `MatSolverType`, `MatRegister()`
 J*/
@@ -177,6 +179,7 @@ typedef const char *MatSolverType;
 #define MATSOLVERHIP          "hip"
 #define MATSOLVERKOKKOS       "kokkos"
 #define MATSOLVERSPQR         "spqr"
+#define MATSOLVERHTOOL        "htool"
 
 /*E
     MatFactorType - indicates what type of factorization is requested
@@ -284,9 +287,7 @@ typedef const char *MatProductAlgorithm;
 #define MATPRODUCTALGORITHMALLATONCEMERGED "allatonce_merged"
 #define MATPRODUCTALGORITHMALLGATHERV      "allgatherv"
 #define MATPRODUCTALGORITHMCYCLIC          "cyclic"
-#if defined(PETSC_HAVE_HYPRE)
-  #define MATPRODUCTALGORITHMHYPRE "hypre"
-#endif
+#define MATPRODUCTALGORITHMHYPRE           "hypre"
 
 PETSC_EXTERN PetscErrorCode MatProductCreate(Mat, Mat, Mat, Mat *);
 PETSC_EXTERN PetscErrorCode MatProductCreateWithMat(Mat, Mat, Mat, Mat);
@@ -373,6 +374,7 @@ PETSC_EXTERN PetscErrorCode MatSetOptionsPrefixFactor(Mat, const char[]);
 PETSC_EXTERN PetscErrorCode MatAppendOptionsPrefixFactor(Mat, const char[]);
 PETSC_EXTERN PetscErrorCode MatAppendOptionsPrefix(Mat, const char[]);
 PETSC_EXTERN PetscErrorCode MatGetOptionsPrefix(Mat, const char *[]);
+PETSC_EXTERN PetscErrorCode MatGetState(Mat, PetscObjectState *);
 PETSC_EXTERN PetscErrorCode MatSetErrorIfFailure(Mat, PetscBool);
 
 PETSC_EXTERN PetscFunctionList MatList;
@@ -529,6 +531,7 @@ PETSC_EXTERN PetscErrorCode MatHYPRESetPreallocation(Mat, PetscInt, const PetscI
 
 PETSC_EXTERN PetscErrorCode MatPythonSetType(Mat, const char[]);
 PETSC_EXTERN PetscErrorCode MatPythonGetType(Mat, const char *[]);
+PETSC_EXTERN PetscErrorCode MatPythonCreate(MPI_Comm, PetscInt, PetscInt, PetscInt, PetscInt, const char[], Mat *);
 
 PETSC_EXTERN PetscErrorCode MatResetPreallocation(Mat);
 PETSC_EXTERN PetscErrorCode MatSetUp(Mat);
@@ -2021,8 +2024,16 @@ typedef enum {
   MATOP_FIND_OFFBLOCK_ENTRIES = 143,
   MATOP_MPICONCATENATESEQ     = 144,
   MATOP_DESTROYSUBMATRICES    = 145,
-  MATOP_TRANSPOSE_SOLVE       = 146,
-  MATOP_GET_VALUES_LOCAL      = 147
+  MATOP_MAT_TRANSPOSE_SOLVE   = 146,
+  MATOP_GET_VALUES_LOCAL      = 147,
+  MATOP_CREATE_GRAPH          = 148,
+  /* MATOP_PLACEHOLDER_149=149, */
+  MATOP_TRANSPOSE_SYMBOLIC  = 150,
+  MATOP_ELIMINATE_ZEROS     = 151,
+  MATOP_GET_ROW_SUM_ABS     = 152,
+  MATOP_GET_FACTOR          = 153,
+  MATOP_GET_BLOCK_DIAGONAL  = 154, // NOTE: caller of the two op functions owns the returned matrix
+  MATOP_GET_VBLOCK_DIAGONAL = 155  // and need to destroy it after use.
 } MatOperation;
 PETSC_EXTERN PetscErrorCode MatSetOperation(Mat, MatOperation, void (*)(void));
 PETSC_EXTERN PetscErrorCode MatGetOperation(Mat, MatOperation, void (**)(void));
