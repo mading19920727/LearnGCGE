@@ -132,6 +132,8 @@ static inline PetscErrorCode PetscStrlen(const char s[], size_t *len)
   Notes:
   `NULL` string returns a new `NULL` string.
 
+  Use `PetscFree()` to release the data when it is no longer needed.
+
   If `t` has previously been allocated then that memory is lost, you may need to `PetscFree()`
   the array before calling this routine.
 
@@ -596,7 +598,7 @@ static inline PetscErrorCode PetscStrbeginswith(const char a[], const char b[], 
    beginning at location `a`. Copying  between regions that overlap will
    take place correctly. Use `PetscMemcpy()` if the locations do not overlap
 
-   Not Collective
+   Not Collective, No Fortran Support
 
    Input Parameters:
 +  b - pointer to initial memory space
@@ -650,7 +652,7 @@ static inline PetscErrorCode PetscMemmove(void *a, const void *b, size_t n)
    beginning at location `a`. The two memory regions CANNOT overlap, use
    `PetscMemmove()` in that case.
 
-   Not Collective
+   Not Collective, No Fortran Support
 
    Input Parameters:
 +  b - pointer to initial memory space
@@ -712,7 +714,7 @@ static inline PetscErrorCode PetscMemcpy(void *a, const void *b, size_t n)
 /*@C
    PetscMemzero - Zeros the specified memory.
 
-   Not Collective
+   Not Collective, No Fortran Support
 
    Input Parameters:
 +  a - pointer to beginning memory location
@@ -765,7 +767,7 @@ static inline PetscErrorCode PetscMemzero(void *a, size_t n)
 
    Synopsis:
     #include <petscstring.h>
-    PetscErrorCode PetscArraycmp(const anytype *str1,const anytype *str2,size_t cnt,PetscBool *e)
+    PetscErrorCode PetscArraycmp(const anytype *str1, const anytype *str2, size_t cnt, PetscBool *e)
 
    Not Collective
 
@@ -795,7 +797,7 @@ M*/
 
    Synopsis:
     #include <petscstring.h>
-    PetscErrorCode PetscArraymove(anytype *str1,const anytype *str2,size_t cnt)
+    PetscErrorCode PetscArraymove(anytype *str1, const anytype *str2, size_t cnt)
 
    Not Collective
 
@@ -820,7 +822,7 @@ M*/
 
    Synopsis:
     #include <petscstring.h>
-    PetscErrorCode PetscArraycpy(anytype *str1,const anytype *str2,size_t cnt)
+    PetscErrorCode PetscArraycpy(anytype *str1, const anytype *str2, size_t cnt)
 
    Not Collective
 
@@ -845,7 +847,7 @@ M*/
 
    Synopsis:
     #include <petscstring.h>
-    PetscErrorCode PetscArrayzero(anytype *str1,size_t cnt)
+    PetscErrorCode PetscArrayzero(anytype *str1, size_t cnt)
 
    Not Collective
 
@@ -860,4 +862,4 @@ M*/
 
 .seealso: `PetscMemcpy()`, `PetscMemcmp()`, `PetscMemzero()`, `PetscArraycmp()`, `PetscArraycpy()`, `PetscMemmove()`, `PetscStrallocpy()`, `PetscArraymove()`
 M*/
-#define PetscArrayzero(str1, cnt) PetscMemzero((str1), (size_t)(cnt) * sizeof(*(str1)))
+#define PetscArrayzero(str1, cnt) PetscMemzero((str1), ((size_t)(cnt)) * sizeof(*(str1)))
