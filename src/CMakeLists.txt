@@ -33,12 +33,14 @@ endmacro()
 # test
 include_directories(
     ${PROJECT_SOURCE_DIR}/gcge/include
-    ${PETSC_INCLUDE_DIR}
-    )
+    ${PROJECT_SOURCE_DIR}/src
+    ${PETSC_INCLUDE_DIR} # PETSc 头文件路径
+)
 # 设置库文件搜索路径
-link_directories(${PETSC_LIB_DIR})
+link_directories(
+    ${PETSC_LIB_DIR}
+)
 
-include_directories(${PROJECT_SOURCE_DIR}/src)
 file(GLOB_RECURSE ALL_SOURCES "*.cpp" "*.c" "*.h")
 add_executable(test     ${ALL_SOURCES})
 
@@ -50,24 +52,17 @@ else()
     message(FATAL_ERROR "OpenBLAS not found!")
 endif()
 
-# message(STATUS "MPI::MPI_C: ${MPI::MPI_C}")
-message(STATUS "MPI_C_LIBRARIES: ${MPI_C_LIBRARIES}")
 target_link_libraries(test PRIVATE 
-    "${PETSC_DIR}/windows/lib/libpetsc.a"
+    "${PETSC_DIR}/lib/libpetsc.a"     # PETSC # todo: 这样写存在链接错误，为什么
     GCGE
-    # MPI::MPI_C
-    ${MPI_C_LIBRARIES}  # 用这个会失败？？？？？？
+    MPI::MPI_C          # MPI C 库， # todo: 采用${MPI_C_LIBRARIES}会失败，为什么
     OpenBLAS::OpenBLAS  # OpenBLAS
     regex               # 正则表达式库
     gfortran            # GNU Fortran 运行时库
     stdc++              # C++ 标准库
     quadmath            # 高精度数学库（Fortran 相关）
-    OpenMP::OpenMP_C
+    OpenMP::OpenMP_C    # OpenMP C 库, todo: 是否要包含OpenMP::OpenMP_CXX
 )
-# ${MPI_C_LIBRARIES}  # Link MPI libraries for the test executable
-# OpenMP::OpenMP_CXX
-# OpenMP::OpenMP_C
-# petsc
 
 if(WIN32)
     target_link_libraries(test PRIVATE
