@@ -28,34 +28,11 @@ endif()
 
 find_package(OpenBLAS REQUIRED)
 
-# 暂时解决mingw下OpenBLAS_LIBRARIES未定义问题。之后统一编写cmake文件
-# 定义宏来根据操作系统选择链接方式
-macro(link_openblas target)
-    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        # 在 Ubuntu 上使用 ${OpenBLAS_LIBRARIES}
-        target_link_libraries(${target} PRIVATE ${OpenBLAS_LIBRARIES})
-        message(STATUS "Linking OpenBLAS on Linux: ${OpenBLAS_LIBRARIES}")
-    elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        # 在 MinGW 上使用 OpenBLAS::OpenBLAS
-        target_link_libraries(${target} PRIVATE OpenBLAS::OpenBLAS)
-        message(STATUS "Linking OpenBLAS on Windows (MinGW): OpenBLAS::OpenBLAS")
-    else()
-        message(FATAL_ERROR "Unsupported system: ${CMAKE_SYSTEM_NAME}")
-    endif()
-endmacro()
-
-if (OpenBLAS_FOUND)
-    message(STATUS "OpenBLAS found, enabling support.")
-    include_directories(${OpenBLAS_INCLUDE_DIRS})
-    link_openblas(GCGE)
-else()
-    message(FATAL_ERROR "OpenBLAS not found!")
-endif()
-
 # 问题1：没有指定openblas发布件和头文件的位置，因此需要保证openblas的so和头文件均在系统路径中，这样才找得到。
 # 问题2：没有指定umfpack发布件的位置，因此需要保证umfpack的so在系统路径中，这样才找得到。
 target_link_libraries(GCGE PUBLIC
     ${MPI_C_LIBRARIES}  # Link MPI libraries
+    OpenBLAS::OpenBLAS  # OpenBLAS
     OpenMP::OpenMP_C
     # petsc
     # regex               # 正则表达式库
