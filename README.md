@@ -30,17 +30,30 @@ make
 ##### 2.1 下载外部依赖包
 - sudo apt install build-essential openssl libssl-dev 
 - 下载编译安装 cmake-3.16.5
-- 下载编译安装 OpenBLAS-0.3.24
+- 下载编译安装 OpenBLAS-0.3.28
+    ```bash
+    # 下载 OpenBLAS
+    wget https://github.com/xianyi/OpenBLAS/archive/v0.3.28.tar.gz -O OpenBLAS-0.3.28.tar.gz
+    tar -xzf OpenBLAS-0.3.28.tar.gz
+    cd OpenBLAS-0.3.28
+    # 编译并启用 OpenMP
+    make -j4 USE_OPENMP=1 PREFIX=$HOME/deps/OpenBLAS-0.3.28 # 这个路径指定好像没生效，生成在了/opt/OpenBLAS/下
+    # 安装
+    sudo make install
+    echo 'export LD_LIBRARY_PATH=$HOME/deps/OpenBLAS-0.3.28/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
+    echo 'export CPATH=/deps/OpenBLAS-0.3.28/include:$CPATH' >> ~/.bashrc
+    source ~/.bashrc
+    ```
 - 下载编译安装 mpich-4.2.3
     ```bash
     wget https://www.mpich.org/static/downloads/4.2.3/mpich-4.2.3.tar.gz
     tar -xzf mpich-4.2.3.tar.gz
     cd mpich-4.2.3
-    ./configure --prefix=$HOME/mpich-4.2.3 # --prefix=后面是安装路径，可不填则默认安装到系统路径
+    ./configure --prefix=$HOME/deps/mpich-4.2.3 # --prefix=后面是安装路径，可不填则默认安装到系统路径
     make -j4
     make install
-    echo 'export PATH=$HOME/mpich-4.2.3/bin:$PATH' >> ~/.bashrc # 路径要根据自己的安装路径而定
-    echo 'export LD_LIBRARY_PATH=$HOME/mpich-4.2.3/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
+    echo 'export PATH=$HOME/deps/mpich-4.2.3/bin:$PATH' >> ~/.bashrc # 路径要根据自己的安装路径而定
+    echo 'export LD_LIBRARY_PATH=$HOME/deps/mpich-4.2.3/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
     source ~/.bashrc
     ```
 
@@ -120,7 +133,7 @@ make
     
     
 ### 附件：原始readme内容
-#### 外部包
+#### 1、外部包
 
 1. 基础线性代数包 BLAS和LAPACK
 
@@ -130,8 +143,24 @@ make
 
 直接法解法器，可以加速收敛
 
-#### 备注
+#### 2、备注
 
 该算例条件数较大，且矩阵比较病态，目前设置的参数并不适合一般矩阵的特征值问题（会影响效率）；
 
 GCGE1.0_linux/include/ops_config.h 中包含该软件包涉及的一些计算环境的宏定义，注意同步修改这些宏定义；
+
+#### 3、安装方法备份
+
+- 下载编译安装 petsc-3.22.3
+    ```bash
+    # 网站上下载指定安装包: https://web.cels.anl.gov/projects/petsc/download/release-snapshots/
+    tar -xzf petsc-3.22.3.tar.gz
+    cd petsc-3.22.3
+    ./configure --prefix=$HOME/deps/mpich-4.2.3 # --prefix=后面是安装路径，可不填则默认安装到系统路径
+    make -j4
+    make install
+    echo 'export PATH=$HOME/deps/mpich-4.2.3/bin:$PATH' >> ~/.bashrc # 路径要根据自己的安装路径而定
+    echo 'export LD_LIBRARY_PATH=$HOME/deps/mpich-4.2.3/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+
