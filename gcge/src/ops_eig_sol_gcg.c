@@ -33,16 +33,16 @@ struct TimeGCG_ time_gcg = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.
 static int sizeN, startN, endN;
 static int sizeP, startP, endP;
 static int sizeW, startW, endW;
+// sizeX: 初始设置为nevInit大小
 static int sizeC, sizeX, sizeV, endX;
 
 // 矩阵运算的临时空间
 // mv_ws[0]: 用于存放A *  ritz_vec结果
 // mv_ws[1]: 用于存放B *  ritz_vec结果
 static void **mv_ws[3];
-// 表示分配完ss_eval, ss_evec, ss_diag等数据占用最大空间后剩余的double类型工作空间
-static double *dbl_ws;
+static double *dbl_ws; // 表示分配完ss_eval, ss_evec, ss_diag等数据占用最大空间后剩余的double类型工作空间
 static int *int_ws;
-static struct OPS_ *ops_gcg;
+static struct OPS_ *ops_gcg; // 上下文空间
 static struct GCGSolver_ *gcg_solver;
 
 // 临时定义区间求解特征值的全局变量
@@ -139,6 +139,9 @@ static void MatDotMultiVecShift(void **x, void **y,
  * @param nevGiven 已给的近似特征向量个数
  */
 static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven) {
+    ops_gcg->Printf("----InitializeX\n");
+    ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
+        sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
 #if TIME_GCG
     time_gcg.initX_time -= ops_gcg->GetWtime();
 #endif
@@ -153,7 +156,7 @@ static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven) {
     ops_gcg->Printf("V\n");
     ops_gcg->MultiVecView(V, 0, sizeV, ops_gcg);
 #endif
-    ops_gcg->Printf("sizeX = %d, nevGiven = %d, %s\n",
+    ops_gcg->Printf("    sizeX = %d, nevGiven = %d, %s\n",
                     sizeX, nevGiven, gcg_solver->initX_orth_method);
     /* orth_dbl_ws begin from the end of ss_eval */
     double *orth_dbl_ws = gcg_solver->dbl_ws + gcg_solver->nevMax + 2 * gcg_solver->block_size;
@@ -213,6 +216,7 @@ static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven) {
  * @param ss_evec 输入 子空间基底下小规模问题的特征向量 C
  */
 static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec, double *ss_eval) {
+    ops_gcg->Printf("----ComputeRitzVec");
 #if TIME_GCG
     time_gcg.compRV_time -= ops_gcg->GetWtime();
 #endif
@@ -231,6 +235,8 @@ static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec, double *s
     end[1] = endX;
     coef = ss_evec + (sizeV - sizeC) * closeToTargetEvalIndex; // 偏移量: 每列长度(sizeV - sizeC) * 列数(closeToTargetEvalIndex)
 
+    ops_gcg->Printf("    startN = %d, endX = %d, endW = %d, closeToTargetEvalIndex: %d\n", startN, endX, endW, closeToTargetEvalIndex);
+    ops_gcg->Printf("    coef: (%d * %d)\n", end[0] - start[0], end[1] - start[1]);
 #if DEBUG
     ops_gcg->Printf("startN = %d, endW = %d, endX = %d\n", startN, endW, endX);
     ops_gcg->Printf("coef: (%d * %d)\n", end[0] - start[0], end[1] - start[1]);
@@ -246,6 +252,7 @@ static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec, double *s
     ops_gcg->Printf("startN = %d, endW = %d, endX = %d\n", startN, endW, endX);
     ops_gcg->Printf("V = %p, (%d, %d), ritz_vec = %p (%d, %d)\n", V, start[0], end[0], ritz_vec, start[1], end[1]);
 #endif
+    ops_gcg->Printf("    V = %p (%d, %d), ritz_vec = %p (%d, %d)\n", V, start[0], end[0], ritz_vec, start[1], end[1]);
     ops_gcg->MultiVecLinearComb(V, ritz_vec, 0,
                                 start, end, coef, sizeV - sizeC, NULL, 0, ops_gcg);
 
@@ -273,14 +280,15 @@ static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec, double *s
  */
 static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
                             int numCheck, double *tol, int *offset, int* range_nevConv) {
+    ops_gcg->Printf("----CheckConvergence\n");
     // ss_eval偏移以和ritz_vec对齐，使用结束后恢复
     ss_eval += closeToTargetEvalIndex;
 
 #if TIME_GCG
     time_gcg.checkconv_time -= ops_gcg->GetWtime();
 #endif
-#if DEBUG
-    ops_gcg->Printf("numCheck = %d\n", numCheck);
+#if 1
+    ops_gcg->Printf("    numCheck = %d\n", numCheck);
 #endif
     int start[2], end[2], idx;
     double *inner_prod;
@@ -309,7 +317,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
     // 计算numCheck个残差向量的2范数
     for (idx = 0; idx < numCheck; ++idx) {
         inner_prod[idx] = sqrt(inner_prod[idx]);
-#if DEBUG
+#if 1
         ops_gcg->Printf("GCG: [%d] %6.14e (%6.4e, %6.4e)\n",
                         startN + idx, ss_eval[startN + idx],
                         inner_prod[idx], inner_prod[idx] / fabs(ss_eval[startN + idx]));
@@ -351,9 +359,10 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
     // 区间特征值收敛个数
     for (int i = idx; i > 0 ; --i) {
         if (ss_eval[startN + idx - 1] > gcg_solver->min_eigenvalue && ss_eval[startN + idx - 1] < gcg_solver->max_eigenvalue) {
-            ++range_nevConv;
+            ++(*range_nevConv);
         }
     }
+    printf("    idx: %d, nevConv: %d, range_nevConv: %d\n", idx, nevConv, *range_nevConv);
 
     // offset[0]：记录未收敛区间的个数
     // offset[2n+1] 和 offset[2n+2]：分别表示第 n 个未收敛区间的起始和结束位置，0 <= n < offset[0]。
@@ -392,7 +401,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
             }
         }
     }
-
+    printf("    num_unconv = %d\n", num_unconv);
     // sizeN: 未收敛区间的最大允许长度
     if (num_unconv < sizeN) {
         // state表示当前值是否收敛
@@ -412,9 +421,9 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
     time_gcg.checkconv_time += ops_gcg->GetWtime();
 #endif
 
-#if DEBUG
+#if 1
     for (idx = 0; idx < offset[0]; ++idx) {
-        ops_gcg->Printf("offset [%d,%d)\n",
+        ops_gcg->Printf("    offset [%d,%d)\n",
                         offset[idx * 2 + 1], offset[idx * 2 + 2]);
     }
 #endif
@@ -434,6 +443,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
 // Output:
 //		V 矩阵
 static void ComputeP(void **V, double *ss_evec, int *offset) {
+    ops_gcg->Printf("----ComputeP\n");
     ss_evec += closeToTargetEvalIndex * (sizeV - sizeC); // ss_evec偏移以和ritz_vec对齐，使用结束后恢复
 #if TIME_GCG
     time_gcg.compP_time -= ops_gcg->GetWtime();
@@ -443,7 +453,7 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
     double *source, *destin, *mat, *coef;
 
     /* 复制 n 部分对应的列 */
-#if DEBUG
+#if 1
     ops_gcg->Printf("offset[0] = %d, sizeP = %d\n", offset[0], sizeP);
 #endif
     block_size = 0;
@@ -476,19 +486,19 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
     ldm = sizeV - sizeC;
     startP = sizeX - sizeC;
     endP = startP + sizeP;
-#if DEBUG
-    ops_gcg->Printf("sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d\n",
+#if 1
+    ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d\n",
                     sizeC, sizeN, sizeX, sizeP, sizeW);
-    ops_gcg->Printf("startP = %d, endP = %d, startW = %d, endW = %d, sizeV = %d\n",
+    ops_gcg->Printf("    startP = %d, endP = %d, startW = %d, endW = %d, sizeV = %d\n",
                     startP, endP, startW, endW, sizeV);
-    int row, ncols;
-    for (row = 0; row < nrows; ++row) {
-        for (col = 0; col < endP; ++col) {
-            ops_gcg->Printf("%6.4e\t", mat[row + ldm * col]);
-        }
-        ops_gcg->Printf("\n");
-    }
-    ops_gcg->Printf("startP = %d, endP = %d, sizeP = %d, startW = %d, endW = %d, sizeW = %d, sizeV = %d\n",
+    // int row, ncols;
+    // for (row = 0; row < nrows; ++row) {
+    //     for (col = 0; col < endP; ++col) {
+    //         ops_gcg->Printf("%6.4e\t", mat[row + ldm * col]);
+    //     }
+    //     ops_gcg->Printf("\n");
+    // }
+    ops_gcg->Printf("    startP = %d, endP = %d, sizeP = %d, startW = %d, endW = %d, sizeW = %d, sizeV = %d\n",
                     startP, endP, sizeP, startW, endW, sizeW, sizeV);
 #endif
     double *orth_dbl_ws = ss_evec + ldm * endP;
@@ -538,10 +548,9 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
     endP += sizeC;
     sizeP = endP - startP;
 
+    ops_gcg->Printf("    startP = %d, endP = %d, sizeP = %d, startW = %d, endW = %d, sizeW = %d, sizeV = %d\n",
+        startP, endP, sizeP, startW, endW, sizeW, sizeV);
 #if DEBUG
-    ops_gcg->Printf("startP = %d, endP = %d, sizeP = %d, startW = %d, endW = %d, sizeW = %d, sizeV = %d\n",
-                    startP, endP, sizeP, startW, endW, sizeW, sizeV);
-
     nrows = sizeV - sizeC;
     ncols = sizeV - sizeC;
     for (row = 0; row < nrows; ++row) {
@@ -595,6 +604,10 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
 // Output:
 //		V 矩阵
 static void ComputeX(void **V, void **ritz_vec) {
+    ops_gcg->Printf("----ComputeX\n");
+    ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
+        sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
+    ops_gcg->Printf("    startN = %d, endX = %d\n", startN, endX);
 #if TIME_GCG
     time_gcg.compX_time -= ops_gcg->GetWtime();
 #endif
@@ -620,6 +633,9 @@ static void ComputeX(void **V, void **ritz_vec) {
 //		V 矩阵
 static void ComputeW(void **V, void *A, void *B,
                      double *ss_eval, void **ritz_vec, int *offset) {
+    ops_gcg->Printf("----ComputeW\n");
+    ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
+        sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
     // 这里的ss_eval是否需要偏移？
     ss_eval += closeToTargetEvalIndex;
 #if TIME_GCG
@@ -1153,6 +1169,7 @@ static void ComputeW12(void **V, void *A, void *B,
  */
 static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_evec, double tol,
                                 int nevConv, double *ss_diag, void *A, void **V) {
+    ops_gcg->Printf("----ComputeRayleighRitz\n");
 #if TIME_GCG
     time_gcg.compRR_time -= ops_gcg->GetWtime();
 #endif
@@ -1191,7 +1208,8 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 
     sizeN = endN - startN;
     sizeC = nevConv;
-
+    ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
+        sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
     /* 已收敛部分C不再考虑，更新 ss_mat ss_evec 起始地址*/
     // 由于sizeC大小变更，ss_matA与ss_evec均向后平移相应位置
     ss_matA = ss_diag + (sizeV - sizeC);
@@ -1558,6 +1576,7 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
  */
 static void GCG(void *A, void *B, double *eval, void **evec,
                 int nevGiven, int *nevConv, struct OPS_ *ops) {
+    ops->Printf("----GCG\n");
 #if 1
     /* offsetW[0] 表示有多少个列,
      * offsetW[1] <= idx < offsetW[2] 是未收敛的编号 */
@@ -1568,21 +1587,25 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     gcg_solver->nevGiven = nevGiven;
     gcg_solver->nevConv = *nevConv;
     ops_gcg = ops;
-    // nevInit: 初始选取X矩阵的列数; block_size: 分块矩阵W或P的列数，预估大于所要求解的特征值的最大代数重数
-    int nevMax, multiMax, block_size, nevInit;
-    // 用户希望收敛的特征对个数
-    int nev0;
+    int nevMax; // 整个任务所要求的特征对最大个数
+    int multiMax; // 特征对重数的最大值
+    int block_size; // 分块矩阵W或P的列数，预估大于所要求解的特征值的最大代数重数
+    int nevInit; // 初始选取X矩阵的列数
+    int nev0; // 用户希望收敛的特征对个数
 
     int nev;
-    int numIterMax, numIter, numCheck;
+    int numIterMax; // 最大迭代次数
+    int numIter; // 迭代次数
+    int numCheck; // 收敛性检查的特征对个数
     // V: 子空间; ritz_vec: 原空间特征向量矩阵
     void **V, **ritz_vec;
-    double *ss_matA; // 子空间的矩阵
-    double *ss_diag; // 子空间矩阵的对角线元素
-    double *ss_eval; // 子空间矩阵的特征值
-    double *ss_evec; // 子空间矩阵的特征向量(按列存储)
-    double *tol;
-    int start[2], end[2], idx;
+    double *ss_matA; // 子空间的矩阵， 占用空间为: (sizeV - sizeC) * (sizeV - sizeC)(长度实时变化)
+    double *ss_diag; // 子空间矩阵的对角线元素 占用空间为: sizeV - sizeC(长度实时变化)
+    double *ss_eval; // 子空间矩阵的特征值 预留内存空间大小为: nevMax + 2 * block_size
+    double *ss_evec; // 子空间矩阵的特征向量(按列存储) 占用空间为: (sizeV - sizeC) * (sizeV - sizeC)(长度实时变化)
+    double *tol; // 收敛容差(绝对，相对)
+    int start[2], end[2];
+    int idx; // 索引，通用变量，各处意义不同
     double *coef;
 
     nevInit = gcg_solver->nevInit;
@@ -1618,6 +1641,8 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     endP = startP + sizeP;
     startW = endP;
     endW = startW + sizeW;
+    ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
+        sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
     /* workspace */
     V = gcg_solver->mv_ws[0];
     ritz_vec = evec;
@@ -1724,10 +1749,9 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     do {
         fflush(stdout);
 
-#if DEBUG
+#if 1
         ops_gcg->Printf("numIter = %d, sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
                         numIter, sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
-        ops_gcg->Printf("CheckConvergence\n");
 #endif
         if (numIter <= 0) {
             numCheck = 0;
@@ -1738,7 +1762,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 
         *nevConv = CheckConvergence(A, B, ss_eval, ritz_vec, numCheck, tol, offsetW, &range_nevConv);
 #if PRINT_FIRST_UNCONV
-        ops_gcg->Printf("%d\t%d\n", numIter, *nevConv);
+        ops_gcg->Printf("numIter: %d\t *nevConv: %d, nev: %d, nev0: %d \n", numIter, *nevConv, nev, nev0);
 #endif
         // 判断新收敛的特征对个数是否大于2 * block_size(即sizeP + sizeW)
         if (*nevConv >= nev) {
@@ -1807,23 +1831,12 @@ static void GCG(void *A, void *B, double *eval, void **evec,
             startP = endX;
             endP = startP + sizeP;
         } else {
-#if DEBUG
-            ops_gcg->Printf("ComputeP\n");
-#endif
             ComputeP(V, ss_evec, offsetP); /* update sizeP startP endP */
         }
-
-#if DEBUG
-        ops_gcg->Printf("ComputeX\n");
-#endif
         ComputeX(V, ritz_vec);
 
 #if DEBUG
         ops_gcg->MultiVecView(V, 0, sizeX, ops_gcg);
-#endif
-
-#if DEBUG
-        ops_gcg->Printf("ComputeW\n");
 #endif
         if (gcg_solver->compW_cg_order != 1) {
             ComputeW12(V, A, B, ss_eval, ritz_vec, offsetW); /* update sizeW startW endW */
@@ -2018,6 +2031,7 @@ void EigenSolverCreateWorkspace_GCG(
     int nevInit, int nevMax, int block_size, void *mat,
     void ***mv_ws, double **dbl_ws, int **int_ws,
     struct OPS_ *ops) {
+    ops->Printf("----EigenSolverCreateWorkspace_GCG\n");
     assert(mv_ws != NULL);
     int sizeV = nevMax + 2 * block_size;
     ops->MultiVecCreateByMat(&mv_ws[0], sizeV, mat, ops);
@@ -2033,9 +2047,9 @@ void EigenSolverCreateWorkspace_GCG(
     /* 这里 nevInit 的设定要与 EigenSolverSetup_GCG 中 nevInit 一致 */
     sizeV = nevInit + 2 * block_size;
     int length_dbl_ws = 2 * sizeV * sizeV + 10 * sizeV + (nevMax + 2 * block_size) + (nevMax)*block_size;
-    ops->Printf("length_dbl_ws = %d\n", length_dbl_ws);
+    ops->Printf("    length_dbl_ws = %d\n", length_dbl_ws);
     int length_int_ws = 6 * sizeV + 2 * (block_size + 3);
-    ops->Printf("length_int_ws = %d\n", length_int_ws);
+    ops->Printf("    length_int_ws = %d\n", length_int_ws);
     if (dbl_ws != NULL) {
         *dbl_ws = malloc(length_dbl_ws * sizeof(double));
         memset(*dbl_ws, 0, length_dbl_ws * sizeof(double));

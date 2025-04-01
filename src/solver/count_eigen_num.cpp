@@ -7,6 +7,7 @@
 #include "count_eigen_num.h"
 
 GcgeErrCode CountEigenNum::countEigenNum(void *A, void *B, double a, double b, int &numEigen) {
+    printf("----countEigenNum\n");
     PetscMPIInt rank, size; // 进程信息 
     PetscInt rstart, rend;  // 当前进程所拥有的第一行/最后一行的全局索引
     MatGetOwnershipRange((Mat)A, &rstart, &rend);
@@ -31,7 +32,7 @@ GcgeErrCode CountEigenNum::countEigenNum(void *A, void *B, double a, double b, i
     
     // 计算A - a * B 惯性指数
     MatGetInertia(chol_AaB, &numEigen, &nzero, &npos); 
-    printf("nneg: %d, nzero:%d, npos: %d\n", numEigen, nzero, npos);
+    printf("    nneg: %d, nzero:%d, npos: %d\n", numEigen, nzero, npos);
 
     /*-----------------------------------------------------------------------------------*/
 
@@ -50,10 +51,11 @@ GcgeErrCode CountEigenNum::countEigenNum(void *A, void *B, double a, double b, i
 
     // 计算A - b * B 惯性指数
     MatGetInertia(chol_AbB, &nneg, &nzero, &npos); 
-    printf("nneg: %d, nzero:%d, npos: %d\n", nneg, nzero, npos);
+    printf("    nneg: %d, nzero:%d, npos: %d\n", nneg, nzero, npos);
 
     // 区间内特征值个数
     numEigen = nneg - numEigen;
+    printf("    numEigen: %d\n", numEigen);
 
     ISDestroy(&row);
     ISDestroy(&col);
