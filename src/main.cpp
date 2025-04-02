@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
     }
 
     // 刚度矩阵和质量矩阵预处理DKD，DMD(此功能暂时设置在CountEigenNum类中,支持并行时再调整)
-    CountEigenNum::processMatDAD(sourceMatA, sourceMatB);
+    // CountEigenNum::processMatDAD(sourceMatA, sourceMatB);
 
     // 2、设置工作空间
     OPS* ccs_ops = NULL;

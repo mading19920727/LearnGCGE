@@ -373,6 +373,8 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec,
     offset[0] = 0; // 未收敛区间的个数
     state = 1;
     num_unconv = 0;
+    // ques: numCheck中非第一个收敛区间内的收敛特征对不记入收敛个数的原因是?
+    // ans: 算法求最小特征值，第一个收敛区间后收敛的不一定属于最小的nev个，因此不计入统计，必须依次收敛的才记入。
     for (idx = 0; idx < numCheck; ++idx) {
         /* 这一个是不收敛的 */
         if (inner_prod[idx] > tol[0] || inner_prod[idx] > fabs(ss_eval[startN + idx]) * tol[1]) {
