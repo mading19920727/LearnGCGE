@@ -301,7 +301,12 @@ typedef struct {
  * @param p2 第二个特征值的索引
  * @return int < 0: p1在p2前面; > 0: p2在p1前面; = 0: 相等,保持原顺序
  */
+
+#if defined(_WIN32)
 int compareEigenValue(void *context, const void *p1, const void *p2) {
+#else
+int compareEigenValue(const void *p1, const void *p2, void *context) {
+#endif
     const EigenCompareContext *ctx = (const EigenCompareContext *)context;
     int idx1 = *(const int *)p1;
     int idx2 = *(const int *)p2;
@@ -403,7 +408,11 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
         .center = (gcg_solver->min_eigenvalue + gcg_solver->max_eigenvalue) / 2.0
     };
     // 对resortedIndex进行排序：resortedIndex[i]表示第i个特征值在ss_eval中的索引
+#if defined(_WIN32)
     qsort_s(resortedIndex, numCheck, sizeof(int), compareEigenValue, &eigenCompareContext); // 排序索引数组
+#else
+    qsort_r(resortedIndex, numCheck, sizeof(int), compareEigenValue, &eigenCompareContext); // 排序索引数组
+#endif
     for (idx = 0; idx < numCheck; ++idx) {
 #if 1
         ops_gcg->Printf("    GCG: [%d] %6.14e (%6.4e, %6.4e)\n",
