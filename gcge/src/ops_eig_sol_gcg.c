@@ -382,7 +382,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     // 计算B * ritz_vec
     ops_gcg->MatDotMultiVec(B, ritz_vec, mv_ws[1], start, end, ops_gcg);
     BVGetSizes((BV)mv_ws[1], &x_nrowslocal, &x_nrows, &x_ncols);
-    printf("    3) x_nrowslocal = %d, x_nrows = %d, x_ncols = %d\n", x_nrowslocal, x_nrows, x_ncols);
+    printf("    3) mv_ws[1]: x_nrowslocal = %d, x_nrows = %d, x_ncols = %d\n", x_nrowslocal, x_nrows, x_ncols);
     // 计算 lambda * B * ritz_vec
     ops_gcg->MultiVecLinearComb(NULL, mv_ws[1], 0, start, end, NULL, 0, ss_eval + startN, 1, ops_gcg);
     start[0] = 0;
@@ -431,7 +431,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
         if (inner_prod[i] < tol[0] || inner_prod[i] < ss_eval[startN + i] * tol[1]) {
             curConvNum++;
             if (ss_eval[startN + i] >= gcg_solver->min_eigenvalue && ss_eval[startN + i] <= gcg_solver->max_eigenvalue) {
-                *range_nevConv++;
+                (*range_nevConv)++;
             }
         } else {
             break; // 遇到未收敛的特征值，停止循环
@@ -463,6 +463,10 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     // 收敛性检查完成，恢复ss_eval地址
     ss_eval -= closeToTargetEvalIndex;
     ss_evec -= closeToTargetEvalIndex * (sizeV - sizeC);
+    // 将前面会被覆盖的数据存入后面
+    memcpy(ss_eval + startN + numCheck, ss_eval + startN, closeToTargetEvalIndex * sizeof(double));
+    memcpy(ss_evec + (sizeV - sizeC) * numCheck, ss_evec, closeToTargetEvalIndex * (sizeV - sizeC) * sizeof(double));
+
     // 写回 data: 放在ss_eval的前面
     memcpy(ss_eval + startN, tempData, numCheck * sizeof(double));
     memcpy(inner_prod, tempDatainner_prod, numCheck * sizeof(double));
@@ -1941,8 +1945,8 @@ static void GCG(void *A, void *B, double *eval, void **evec,
         if (numIter <= 0) {
             numCheck = 0;
         } else {
-            // numCheck = (endX - startN);
-            numCheck = (startN + sizeN < endX) ? (sizeN) : (endX - startN);
+            numCheck = (endX - startN);
+            // numCheck = (startN + sizeN < endX) ? (sizeN) : (endX - startN);
         }
         numCheck = numCheck < gcg_solver->check_conv_max_num ? numCheck : gcg_solver->check_conv_max_num;
 
@@ -2207,12 +2211,12 @@ void EigenSolverCreateWorkspace_GCG(
     ops->MultiVecCreateByMat(&mv_ws[0], sizeV, mat, ops);
     ops->MultiVecSetRandomValue(mv_ws[0], 0, sizeV, ops);
     // slepc中的BV创建时，默认是跨进程共享的，数据是分布式存储的。
-    ops->MultiVecCreateByMat(&mv_ws[1], block_size, mat, ops);
-    ops->MultiVecSetRandomValue(mv_ws[1], 0, block_size, ops);
-    ops->MultiVecCreateByMat(&mv_ws[2], block_size, mat, ops);
-    ops->MultiVecSetRandomValue(mv_ws[2], 0, block_size, ops);
-    ops->MultiVecCreateByMat(&mv_ws[3], block_size, mat, ops);
-    ops->MultiVecSetRandomValue(mv_ws[3], 0, block_size, ops);
+    ops->MultiVecCreateByMat(&mv_ws[1], 2 * block_size, mat, ops);
+    ops->MultiVecSetRandomValue(mv_ws[1], 0, 2 * block_size, ops);
+    ops->MultiVecCreateByMat(&mv_ws[2], 2 * block_size, mat, ops);
+    ops->MultiVecSetRandomValue(mv_ws[2], 0, 2 * block_size, ops);
+    ops->MultiVecCreateByMat(&mv_ws[3], 2 * block_size, mat, ops);
+    ops->MultiVecSetRandomValue(mv_ws[3], 0, 2 * block_size, ops);
 
     /* 这里 nevInit 的设定要与 EigenSolverSetup_GCG 中 nevInit 一致 */
     sizeV = nevInit + 2 * block_size;
