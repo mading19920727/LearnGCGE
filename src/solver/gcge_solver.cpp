@@ -12,7 +12,7 @@
 #include <omp.h>
 #include <vector>
 #include <cmath>
-
+#include <algorithm>
 extern "C" {
 #include "app_ccs.h"
 #include "app_lapack.h"
@@ -150,10 +150,15 @@ int eigenSolverGCG(void* A, void* B, std::vector<double>& eigenvalue, std::vecto
 
     // 开始导出数据
     eigenvalue.resize(nevConv);
+    std::sort(eigenvalue.begin(), eigenvalue.end());
     eigenvector.resize(nevConv);
     ops->Printf("eigenvectors\n");
+    int countInRange = 0;
     for (auto i = 0; i < nevConv; ++i) {
-        ops->Printf("index: %d eigenvalue: %e\n", i + 1, eval[i]);
+        if (eval[i] >= gcgsolver->min_eigenvalue && eval[i] <= gcgsolver->max_eigenvalue) {
+            countInRange++;
+            ops->Printf("index: %d eigenvalue: %e\n", countInRange, eval[i]);
+        }
     }
     //ops->MultiVecView(evec,0,nevConv,ops);
 
