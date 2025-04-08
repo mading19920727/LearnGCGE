@@ -284,7 +284,7 @@ static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec, double *s
  * @return int 1: 收敛; 0: 不收敛
  */
 int eigen_is_convergent(double* inner_prod, double* tol, double* ss_eval, int idx) {
-    if (inner_prod[idx] < tol[0] || inner_prod[idx] < ss_eval[startN + idx] * tol[1]) {
+    if (inner_prod[idx] < tol[1]) {
         return 1;
     }
     return 0;
@@ -393,12 +393,17 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     ops_gcg->MultiVecAxpby(-1.0, mv_ws[1], 1.0, mv_ws[0], start, end, ops_gcg);
     /* 不使用 ss_evec 部分 */
     inner_prod = dbl_ws + (sizeV - sizeC) * sizeW; // inner_prod为内积结果的存储首地址
+    // 分母部分数据(改成与Matlab一致的相对误差检测)
+    double *res_ref2 = malloc((sizeV - sizeC) * numCheck * sizeof(double));
+    ops_gcg->MultiVecInnerProd('D', mv_ws[1], mv_ws[1], 0, start, end, res_ref2, 1, ops_gcg);
     // 计算numCheck个残差向量的2范数的平方
     ops_gcg->MultiVecInnerProd('D', mv_ws[0], mv_ws[0], 0,
                                start, end, inner_prod, 1, ops_gcg);
     // 计算numCheck个残差向量的2范数
     for (idx = 0; idx < numCheck; ++idx) {
         inner_prod[idx] = sqrt(inner_prod[idx]);
+        res_ref2[idx] = sqrt(res_ref2[idx]);
+        inner_prod[idx] = inner_prod[idx] / res_ref2[idx]; // 计算相对误差
     }
     // ##############################################将求解的特征值排序 start###########################################
     int *resortedIndex = malloc(numCheck * sizeof(int));   // 重排序的索引数组
@@ -419,16 +424,16 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
 #endif
     for (idx = 0; idx < numCheck; ++idx) {
 #if 1
-        ops_gcg->Printf("    GCG: [%d] %6.14e (%6.4e, %6.4e)\n",
+        ops_gcg->Printf("    GCG: [%d] %6.14e (%6.4e)\n",
                         startN + idx, ss_eval[startN + resortedIndex[idx]],
-                        inner_prod[resortedIndex[idx]], inner_prod[resortedIndex[idx]] / fabs(ss_eval[startN + resortedIndex[idx]]));
+                        inner_prod[resortedIndex[idx]]);
 #endif
     }
     // 计算收敛个数
     int curConvNum = 0; // 当前轮次收敛的数目
     for (idx = 0; idx < numCheck; ++idx) {
         int i = resortedIndex[idx]; // 获取排序后的索引
-        if (inner_prod[i] < tol[0] || inner_prod[i] < ss_eval[startN + i] * tol[1]) {
+        if (inner_prod[i] < tol[1]) {
             curConvNum++;
             if (ss_eval[startN + i] >= gcg_solver->min_eigenvalue && ss_eval[startN + i] <= gcg_solver->max_eigenvalue) {
                 (*range_nevConv)++;
@@ -500,7 +505,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     // ans: 算法求最小特征值，第一个收敛区间后收敛的不一定属于最小的nev个，因此不计入统计，必须依次收敛的才记入。
     for (idx = 0; idx < numCheck; ++idx) {
         /* 这一个是不收敛的 */
-        if (inner_prod[idx] > tol[0] || inner_prod[idx] > fabs(ss_eval[startN + idx]) * tol[1]) {
+        if (inner_prod[idx] > tol[1]) {
             /* 上一个是收敛的 */
             if (state) {
                 // 记录当前未收敛区间的起始位置
@@ -1027,6 +1032,13 @@ static void ComputeW(void **V, void *A, void *B,
 //         // 恢复矩阵A /* A = sigma B + A */
 //     }
 // #endif
+static count_zzy  = 0;
+    count_zzy++;
+    if (count_zzy == 40) {
+        ops_gcg->Printf("=====x===========\n");
+        ops_gcg->MultiVecView(V,start[1],end[1],ops_gcg);
+    }
+
 #if 0
 	ops_gcg->Printf("=====b===========\n");
 	ops_gcg->MultiVecView(b,start[0],end[0],ops_gcg);
@@ -1954,11 +1966,11 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 #if PRINT_FIRST_UNCONV
         ops_gcg->Printf("numIter: %d\t *nevConv: %d, nev: %d, nev0: %d \n", numIter, *nevConv, nev, nev0);
 #endif
+        if (range_nevConv >= nev0) { // 当前收敛个数大于用户希望收敛的个数则退出循环，结束算法
+            break;
+        }
         // 判断新收敛的特征对个数是否大于2 * block_size(即sizeP + sizeW)
         if (*nevConv >= nev) {
-            if (range_nevConv >= nev0) { // 当前收敛个数大于用户希望收敛的个数则退出循环，结束算法
-                break;
-            } else {
                 /* Update sizeX */
                 nev += sizeP + sizeW;
                 // nev = nev < nev0 ? nev : nev0;
@@ -1997,7 +2009,6 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 
                 numIterMax -= numIter;
                 numIter = 0;
-            }
         }
         // 由于构造P需要上一步迭代V的完整信息，所以先构造P
         if (numIter == 0) {
@@ -2055,6 +2066,13 @@ static void GCG(void *A, void *B, double *eval, void **evec,
         /* 计算完 PtAP 部分后再更新 sizeV */
         ComputeRayleighRitz(ss_matA, ss_eval, ss_evec,
                             gcg_solver->compRR_tol, *nevConv, ss_diag, A, V); /* update sizeC startN endN sizeN */
+        static int zzy_count = 0;
+        ++zzy_count;
+        if (zzy_count == 40) {
+            for (idx = 0; idx < sizeV; ++idx) {
+                printf("zzy ss_eval[%d] = %e\n", idx, ss_eval[idx]);
+            }
+        }
 
         for (idx = sizeV; idx < (nevMax + 2 * block_size); ++idx) {
             ss_eval[idx] = ss_eval[sizeV - 1];
