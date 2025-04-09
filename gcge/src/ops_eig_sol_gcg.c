@@ -492,6 +492,25 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     end[1] = endX;
     ops_gcg->MultiVecLinearComb(V, ritz_vec, 0, start, end, ss_evec, sizeV - sizeC, NULL, 0, ops_gcg);
 
+
+    // ############################################ 计算multishift值用于computeW  start ##########################################
+    // todo: 了解新收敛特征值的顺序，有序的话可以直接取第一个或最后一个
+
+    // 选取 新收敛的 且 大于等于特征值a的 其中最小的作为shift值
+    double minVal = INFINITY; // 初始化为正无穷，作为当前的最小值
+    for (int i = 0; i < curConvNum; ++i) { // 遍历每一个新收敛的特征值
+        double curr = ss_eval[startN + i]; // 当前检测的值
+        if (curr >= gcg_solver->min_eigenvalue && curr < minVal) { // 如果大于等于特征值a 且 小于当前的最小值
+            minVal = curr; // 更新当前的最小值
+        }
+    }
+    
+    if (!isinf(minVal)) { // 如果找到符合条件的值
+        printf("    zzy find minVal = %e\n", minVal);
+        gcg_solver->compW_cg_shift = minVal;
+    }
+    // ############################################ 计算multishift值用于computeW  end ##########################################
+
     // offset[0]：记录未收敛区间的个数
     // offset[2n+1] 和 offset[2n+2]：分别表示第 n 个未收敛区间的起始和结束位置，0 <= n < offset[0]。
     // offset[2n+1] <= idx < offset[2n+2]中 idx 是不收敛的标号
@@ -774,22 +793,12 @@ static void ComputeW(void **V, void *A, void *B,
     int length; // offset中每一个未收敛区间的长度
     int inc, idx;
     double *destin = dbl_ws;// double类型剩余工作空间
-    // 1）自动动态选取shift参数
-    double sigma = 0.0; // 此部分不执行，不关注
-    ops_gcg->Printf("    compW_cg_auto_shift: %d, compW_cg_shift: %e\n", gcg_solver->compW_cg_auto_shift, gcg_solver->compW_cg_shift);
-    if (gcg_solver->compW_cg_auto_shift == 1) {
-        sigma = -ss_eval[sizeC] + ((ss_eval[sizeC + 1] - ss_eval[sizeC]) * 0.01);
-#if 0
-		if (sizeC<3)
-			sigma = -ss_eval[sizeC]+(3*(ss_eval[1]-ss_eval[0])<0.1?3*(ss_eval[1]-ss_eval[0]):0.1);
-		else 
-			sigma = -ss_eval[sizeC]+((ss_eval[sizeC+1]-ss_eval[sizeC])<0.1?(ss_eval[sizeC+1]-ss_eval[sizeC]):0.1);
-#endif
-    }
+
+    double sigma = 0.0; // 根据徐博士multishift算法计算sigma值
     gcg_solver->sigma = gcg_solver->compW_cg_shift + sigma;
     sigma = gcg_solver->sigma;
 #if 1
-    ops_gcg->Printf("    ss_eval[%d] = %e, sigma = %e\n", sizeC, ss_eval[sizeC], gcg_solver->sigma);
+    ops_gcg->Printf("    compW_cg_auto_shift: %d, compW_cg_shift: %e, sigma = %e\n", gcg_solver->compW_cg_auto_shift, gcg_solver->compW_cg_shift, gcg_solver->sigma);
 #endif
     assert(gcg_solver->compW_cg_auto_shift == 0 || gcg_solver->user_defined_multi_linear_solver == 0);
 
@@ -932,7 +941,7 @@ static void ComputeW(void **V, void *A, void *B,
 #if 1
         // 配置BlockPCG求解器参数
         if (sigma != 0.0 && B != NULL && ops_gcg->MatAxpby != NULL) {
-            ops_gcg->MatAxpby(sigma, B, 1.0, A, ops_gcg); // 构造线性方程组系数矩阵  /* 20210628 A = sigma B + A */
+            ops_gcg->MatAxpby(-sigma, B, 1.0, A, ops_gcg); // 构造线性方程组系数矩阵  /* 20210628 A = sigma B + A */
             // 没有给预条件，给了预条件会不会收敛更快?
             MultiLinearSolverSetup_BlockPCG(
                 gcg_solver->compW_cg_max_iter,
@@ -955,11 +964,10 @@ static void ComputeW(void **V, void *A, void *B,
 #if TIME_GCG
     time_gcg.linsol_time -= ops_gcg->GetWtime();
 #endif
-    ops_gcg->MatAxpby(-gcg_solver->max_eigenvalue, B, 1.0, A, ops_gcg);
-
     // 非精确求解线性方程组
     // ops_gcg->MultiLinearSolver(A, b, V, start, end, ops_gcg);
     {
+        // 此部分之后可以封装到MultiLinearSolver中
         // LU分解
         Mat A_bB_AIJ;   // 保存 A - b * B 且转数据格式
         Mat chol_AbB;   // cholesky分解后的矩阵
@@ -1023,21 +1031,14 @@ static void ComputeW(void **V, void *A, void *B,
         MatDestroy(&A_bB_AIJ);
         MatDestroy(&chol_AbB);
     }
-    ops_gcg->MatAxpby(gcg_solver->max_eigenvalue, B, 1.0, A, ops_gcg);
 
-// #if 1
-//     // 此部分 sigma为0，是否可以直接忽略
-//     /* 20210628 recover A */
-//     if (sigma != 0.0 && B != NULL && ops_gcg->MatAxpby != NULL) {
-//         // 恢复矩阵A /* A = sigma B + A */
-//     }
-// #endif
-static count_zzy  = 0;
-    count_zzy++;
-    if (count_zzy == 40) {
-        ops_gcg->Printf("=====x===========\n");
-        ops_gcg->MultiVecView(V,start[1],end[1],ops_gcg);
+#if 1
+    /* 20210628 recover A */
+    if (sigma != 0.0 && B != NULL && ops_gcg->MatAxpby != NULL) {
+        // 恢复矩阵A /* A = sigma B + A */
+        ops_gcg->MatAxpby(sigma, B, 1.0, A, ops_gcg);
     }
+#endif
 
 #if 0
 	ops_gcg->Printf("=====b===========\n");

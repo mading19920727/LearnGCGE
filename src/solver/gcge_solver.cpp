@@ -123,6 +123,7 @@ int eigenSolverGCG(void* A, void* B, std::vector<double>& eigenvalue, std::vecto
     gcgsolver->extract_type = (GCGSolver_::EigenValueExtractType)gcgeparam->extMethod.extractType;
     gcgsolver->min_eigenvalue = std::pow(gcgeparam->extMethod.minFreq * 2 * M_PI, 2);
     gcgsolver->max_eigenvalue = std::pow(gcgeparam->extMethod.maxFreq * 2 * M_PI, 2);
+    gcgsolver->compW_cg_shift = gcgsolver->min_eigenvalue;
 
     /* 命令行获取 GCG 的算法参数 勿用 有 BUG, 
 	 * 不应该改变 nevMax nevInit block_size, 这些与工作空间有关 */
