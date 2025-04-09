@@ -17,6 +17,8 @@
 #define DEBUG 0
 #define TIME_GCG 1
 #define PRINT_FIRST_UNCONV 1
+// LOG_TRACE: 用于跟踪软件运行情况的宏
+#define LOG_TRACE 0
 
 typedef struct TimeGCG_ {
     double initX_time;
@@ -144,9 +146,11 @@ static void MatDotMultiVecShift(void **x, void **y,
  * @param nevGiven 已给的近似特征向量个数
  */
 static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven) {
+#if LOG_TRACE
     ops_gcg->Printf("----InitializeX\n");
     ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
         sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
+#endif // LOG_TRACE
 #if TIME_GCG
     time_gcg.initX_time -= ops_gcg->GetWtime();
 #endif
@@ -161,8 +165,10 @@ static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven) {
     ops_gcg->Printf("V\n");
     ops_gcg->MultiVecView(V, 0, sizeV, ops_gcg);
 #endif
+#if LOG_TRACE
     ops_gcg->Printf("    sizeX = %d, nevGiven = %d, %s\n",
                     sizeX, nevGiven, gcg_solver->initX_orth_method);
+#endif // LOG_TRACE
     /* orth_dbl_ws begin from the end of ss_eval */
     double *orth_dbl_ws = gcg_solver->dbl_ws + gcg_solver->nevMax + 2 * gcg_solver->block_size;
     // 配置多向量正交化方法
@@ -224,7 +230,9 @@ static void InitializeX(void **V, void **ritz_vec, void *B, int nevGiven) {
  * @param ss_evec 输入 子空间基底下小规模问题的特征向量 C
  */
 static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec, double *ss_eval) {
+#if LOG_TRACE
     ops_gcg->Printf("----ComputeRitzVec\n");
+#endif // LOG_TRACE
 #if TIME_GCG
     time_gcg.compRV_time -= ops_gcg->GetWtime();
 #endif
@@ -243,8 +251,11 @@ static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec, double *s
     end[1] = endX;
     coef = ss_evec + (sizeV - sizeC) * closeToTargetEvalIndex; // 偏移量: 每列长度(sizeV - sizeC) * 列数(closeToTargetEvalIndex)
 
+#if LOG_TRACE
     ops_gcg->Printf("    startN = %d, endX = %d, endW = %d, closeToTargetEvalIndex: %d\n", startN, endX, endW, closeToTargetEvalIndex);
     ops_gcg->Printf("    coef: (%d * %d)\n", end[0] - start[0], end[1] - start[1]);
+    ops_gcg->Printf("    V = %p (%d, %d), ritz_vec = %p (%d, %d)\n", V, start[0], end[0], ritz_vec, start[1], end[1]);
+#endif // LOG_TRACE
 #if DEBUG
     ops_gcg->Printf("startN = %d, endW = %d, endX = %d\n", startN, endW, endX);
     ops_gcg->Printf("coef: (%d * %d)\n", end[0] - start[0], end[1] - start[1]);
@@ -260,7 +271,6 @@ static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec, double *s
     ops_gcg->Printf("startN = %d, endW = %d, endX = %d\n", startN, endW, endX);
     ops_gcg->Printf("V = %p, (%d, %d), ritz_vec = %p (%d, %d)\n", V, start[0], end[0], ritz_vec, start[1], end[1]);
 #endif
-    ops_gcg->Printf("    V = %p (%d, %d), ritz_vec = %p (%d, %d)\n", V, start[0], end[0], ritz_vec, start[1], end[1]);
     ops_gcg->MultiVecLinearComb(V, ritz_vec, 0,
                                 start, end, coef, sizeV - sizeC, NULL, 0, ops_gcg);
 
@@ -278,13 +288,12 @@ static void ComputeRitzVec(void **ritz_vec, void **V, double *ss_evec, double *s
  * @brief 判断一个特征值是否收敛
  * 
  * @param inner_prod 内积
- * @param tol 容差
- * @param ss_eval 特征值(包含了偏移量)
+ * @param rtol 相对容差
  * @param idx 特征值索引
  * @return int 1: 收敛; 0: 不收敛
  */
-int eigen_is_convergent(double* inner_prod, double* tol, double* ss_eval, int idx) {
-    if (inner_prod[idx] < tol[1]) {
+int eigen_is_convergent(double* inner_prod, double rtol, int idx) {
+    if (inner_prod[idx] < rtol) {
         return 1;
     }
     return 0;
@@ -292,7 +301,7 @@ int eigen_is_convergent(double* inner_prod, double* tol, double* ss_eval, int id
 
 typedef struct {
     double *inner_prod; // 用于检查收敛性
-    double *tol; // 收敛容差
+    double rtol; // 相对收敛容差
     double *ss_eval; // 特征值, 用于检查收敛性
     double center; // 中点值
 } EigenCompareContext;
@@ -314,8 +323,8 @@ int compareEigenValue(const void *p1, const void *p2, void *context) {
     const EigenCompareContext *ctx = (const EigenCompareContext *)context;
     int idx1 = *(const int *)p1;
     int idx2 = *(const int *)p2;
-    int conv_a = eigen_is_convergent(ctx->inner_prod, ctx->tol, ctx->ss_eval, idx1);
-    int conv_b = eigen_is_convergent(ctx->inner_prod, ctx->tol, ctx->ss_eval, idx2);
+    int conv_a = eigen_is_convergent(ctx->inner_prod, ctx->rtol, idx1);
+    int conv_b = eigen_is_convergent(ctx->inner_prod, ctx->rtol, idx2);
     // 如果都是收敛的
     if (conv_a && conv_b) {
         return idx1 - idx2; // 保持原顺序
@@ -352,7 +361,9 @@ int compareEigenValue(const void *p1, const void *p2, void *context) {
  */
 static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, double *ss_evec, void **V,
                             int numCheck, double *tol, int *offset, int* range_nevConv) {
+#if LOG_TRACE
     ops_gcg->Printf("----CheckConvergence\n");
+#endif // LOG_TRACE
     // ss_eval偏移以和ritz_vec对齐，使用结束后恢复
     ss_eval += closeToTargetEvalIndex;
     ss_evec += closeToTargetEvalIndex * (sizeV - sizeC);
@@ -360,9 +371,9 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
 #if TIME_GCG
     time_gcg.checkconv_time -= ops_gcg->GetWtime();
 #endif
-#if 1
+#if LOG_TRACE
     ops_gcg->Printf("    numCheck = %d\n", numCheck);
-#endif
+#endif // LOG_TRACE
     int start[2], end[2], idx;
     double *inner_prod;
     int nevConv;
@@ -375,14 +386,11 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     // 计算A * ritz_vec
     int x_nrowslocal, x_nrows, x_ncols;
     BVGetSizes((BV)ritz_vec, &x_nrowslocal, &x_nrows, &x_ncols);
-    printf("    1) ritz_vec: x_nrowslocal = %d, x_nrows = %d, x_ncols = %d\n", x_nrowslocal, x_nrows, x_ncols);
     ops_gcg->MatDotMultiVec(A, ritz_vec, mv_ws[0], start, end, ops_gcg);
     BVGetSizes((BV)mv_ws[0], &x_nrowslocal, &x_nrows, &x_ncols);
-    printf("    2) mv_ws[0]: x_nrowslocal = %d, x_nrows = %d, x_ncols = %d\n", x_nrowslocal, x_nrows, x_ncols);
     // 计算B * ritz_vec
     ops_gcg->MatDotMultiVec(B, ritz_vec, mv_ws[1], start, end, ops_gcg);
     BVGetSizes((BV)mv_ws[1], &x_nrowslocal, &x_nrows, &x_ncols);
-    printf("    3) mv_ws[1]: x_nrowslocal = %d, x_nrows = %d, x_ncols = %d\n", x_nrowslocal, x_nrows, x_ncols);
     // 计算 lambda * B * ritz_vec
     ops_gcg->MultiVecLinearComb(NULL, mv_ws[1], 0, start, end, NULL, 0, ss_eval + startN, 1, ops_gcg);
     start[0] = 0;
@@ -393,18 +401,18 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     ops_gcg->MultiVecAxpby(-1.0, mv_ws[1], 1.0, mv_ws[0], start, end, ops_gcg);
     /* 不使用 ss_evec 部分 */
     inner_prod = dbl_ws + (sizeV - sizeC) * sizeW; // inner_prod为内积结果的存储首地址
+    // 分子部分数据: 计算numCheck个残差向量的2范数的平方
+    ops_gcg->MultiVecInnerProd('D', mv_ws[0], mv_ws[0], 0, start, end, inner_prod, 1, ops_gcg);
     // 分母部分数据(改成与Matlab一致的相对误差检测)
     double *res_ref2 = malloc((sizeV - sizeC) * numCheck * sizeof(double));
     ops_gcg->MultiVecInnerProd('D', mv_ws[1], mv_ws[1], 0, start, end, res_ref2, 1, ops_gcg);
-    // 计算numCheck个残差向量的2范数的平方
-    ops_gcg->MultiVecInnerProd('D', mv_ws[0], mv_ws[0], 0,
-                               start, end, inner_prod, 1, ops_gcg);
     // 计算numCheck个残差向量的2范数
     for (idx = 0; idx < numCheck; ++idx) {
         inner_prod[idx] = sqrt(inner_prod[idx]);
         res_ref2[idx] = sqrt(res_ref2[idx]);
         inner_prod[idx] = inner_prod[idx] / res_ref2[idx]; // 计算相对误差
     }
+    free(res_ref2);
     // ##############################################将求解的特征值排序 start###########################################
     int *resortedIndex = malloc(numCheck * sizeof(int));   // 重排序的索引数组
     for (int i = 0; i < numCheck; i++) {
@@ -412,7 +420,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     }
     EigenCompareContext eigenCompareContext = {
         .inner_prod = inner_prod,
-        .tol = tol,
+        .rtol = tol[1],
         .ss_eval = ss_eval,
         .center = (gcg_solver->min_eigenvalue + gcg_solver->max_eigenvalue) / 2.0
     };
@@ -422,13 +430,13 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
 #else
     qsort_r(resortedIndex, numCheck, sizeof(int), compareEigenValue, &eigenCompareContext); // 排序索引数组
 #endif
+#if LOG_TRACE
     for (idx = 0; idx < numCheck; ++idx) {
-#if 1
         ops_gcg->Printf("    GCG: [%d] %6.14e (%6.4e)\n",
                         startN + idx, ss_eval[startN + resortedIndex[idx]],
                         inner_prod[resortedIndex[idx]]);
-#endif
     }
+#endif // LOG_TRACE
     // 计算收敛个数
     int curConvNum = 0; // 当前轮次收敛的数目
     for (idx = 0; idx < numCheck; ++idx) {
@@ -439,12 +447,16 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
                 (*range_nevConv)++;
             }
         } else {
+#if PRINT_FIRST_UNCONV
+        ops_gcg->Printf("    GCG: [%d] %6.14e (%6.4e)\n",
+            startN + idx, ss_eval[startN + i], inner_prod[i]);
+#endif
             break; // 遇到未收敛的特征值，停止循环
         }
     }
     // 计算当前收敛的特征值总个数
     nevConv = sizeC + curConvNum;
-    printf("    curConvNum: %d, nevConv: %d, range_nevConv: %d \n", curConvNum, nevConv, *range_nevConv);
+    ops_gcg->Printf("    curConvNum: %d, nevConv: %d, range_nevConv: %d \n", curConvNum, nevConv, *range_nevConv);
     // ##############################################张智禹修改：将收敛的特征对放在ss_eval、ss_evec、ritz_vec的最前面 start#######################
     // 临时数组
     double* tempData = (double*)malloc(numCheck * sizeof(double));
@@ -506,7 +518,6 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     }
     
     if (!isinf(minVal)) { // 如果找到符合条件的值
-        printf("    zzy find minVal = %e\n", minVal);
         gcg_solver->compW_cg_shift = minVal;
     }
     // ############################################ 计算multishift值用于computeW  end ##########################################
@@ -550,7 +561,9 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
             }
         }
     }
-    printf("    num_unconv = %d\n", num_unconv);
+#if LOG_TRACE
+    ops_gcg->Printf("    num_unconv = %d\n", num_unconv);
+#endif // LOG_TRACE
     // sizeN: 未收敛区间的最大允许长度
     if (num_unconv < sizeN) {
         // state表示当前值是否收敛
@@ -570,16 +583,14 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     time_gcg.checkconv_time += ops_gcg->GetWtime();
 #endif
 
-#if 1
+#if LOG_TRACE
     for (idx = 0; idx < offset[0]; ++idx) {
         ops_gcg->Printf("    offset [%d,%d)\n",
                         offset[idx * 2 + 1], offset[idx * 2 + 2]);
     }
-#endif
+#endif // LOG_TRACE
     // 需要存在未收敛区间
     assert(offset[0] > 0);
-
-
     return nevConv;
 }
 
@@ -591,7 +602,9 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
 // Output:
 //		V 矩阵
 static void ComputeP(void **V, double *ss_evec, int *offset) {
+#if LOG_TRACE
     ops_gcg->Printf("----ComputeP\n");
+#endif // LOG_TRACE
 #if TIME_GCG
     time_gcg.compP_time -= ops_gcg->GetWtime();
 #endif
@@ -600,9 +613,9 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
     double *source, *destin, *mat, *coef;
 
     /* 复制 n 部分对应的列 */
-#if 1
+#if LOG_TRACE
     ops_gcg->Printf("    offset[0] = %d, sizeP = %d\n", offset[0], sizeP);
-#endif
+#endif // LOG_TRACE
     block_size = 0;
     for (idx = 0; idx < offset[0]; ++idx) {
         length = (sizeV - sizeC) * (offset[idx * 2 + 2] - offset[idx * 2 + 1]);
@@ -633,11 +646,9 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
     ldm = sizeV - sizeC;
     startP = sizeX - sizeC;
     endP = startP + sizeP;
-#if 1
-    ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d\n",
-                    sizeC, sizeN, sizeX, sizeP, sizeW);
-    ops_gcg->Printf("    startP = %d, endP = %d, startW = %d, endW = %d, sizeV = %d\n",
-                    startP, endP, startW, endW, sizeV);
+#if LOG_TRACE
+    ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, startP = %d, endP = %d, sizeP = %d, startW = %d, endW = %d, sizeW = %d, sizeV = %d\n",
+                    sizeC, sizeN, sizeX, startP, endP, sizeP, startW, endW, sizeW, sizeV);
     // int row, ncols;
     // for (row = 0; row < nrows; ++row) {
     //     for (col = 0; col < endP; ++col) {
@@ -645,9 +656,7 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
     //     }
     //     ops_gcg->Printf("\n");
     // }
-    ops_gcg->Printf("    startP = %d, endP = %d, sizeP = %d, startW = %d, endW = %d, sizeW = %d, sizeV = %d\n",
-                    startP, endP, sizeP, startW, endW, sizeW, sizeV);
-#endif
+#endif // LOG_TRACE
     double *orth_dbl_ws = ss_evec + ldm * endP;
     /* ss_diag ss_matA ss_evec 剩下的空间 */
     if (0 == strcmp("bqr", gcg_solver->compP_orth_method)) {
@@ -694,9 +703,10 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
     startP += sizeC;
     endP += sizeC;
     sizeP = endP - startP;
-
+#if LOG_TRACE
     ops_gcg->Printf("    startP = %d, endP = %d, sizeP = %d, startW = %d, endW = %d, sizeW = %d, sizeV = %d\n",
         startP, endP, sizeP, startW, endW, sizeW, sizeV);
+#endif // LOG_TRACE
 #if DEBUG
     nrows = sizeV - sizeC;
     ncols = sizeV - sizeC;
@@ -752,10 +762,11 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
  * @param[in] ritz_vec 近似特征向量
  */
 static void ComputeX(void **V, void **ritz_vec) {
+#if LOG_TRACE
     ops_gcg->Printf("----ComputeX\n");
-    ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
-        sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
-    ops_gcg->Printf("    startN = %d, endX = %d\n", startN, endX);
+    ops_gcg->Printf("    sizeC = %d, startN = %d, sizeN = %d, endX = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
+        sizeC, startN, sizeN, endX, sizeX, sizeP, sizeW, sizeV);
+#endif // LOG_TRACE
 #if TIME_GCG
     time_gcg.compX_time -= ops_gcg->GetWtime();
 #endif
@@ -781,9 +792,11 @@ static void ComputeX(void **V, void **ritz_vec) {
 //		V 矩阵
 static void ComputeW(void **V, void *A, void *B,
                      double *ss_eval, void **ritz_vec, int *offset) {
+#if LOG_TRACE
     ops_gcg->Printf("----ComputeW\n");
     ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
         sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
+#endif // LOG_TRACE
 #if TIME_GCG
     time_gcg.compW_time -= ops_gcg->GetWtime();
 #endif
@@ -797,9 +810,9 @@ static void ComputeW(void **V, void *A, void *B,
     double sigma = 0.0; // 根据徐博士multishift算法计算sigma值
     gcg_solver->sigma = gcg_solver->compW_cg_shift + sigma;
     sigma = gcg_solver->sigma;
-#if 1
+#if LOG_TRACE
     ops_gcg->Printf("    compW_cg_auto_shift: %d, compW_cg_shift: %e, sigma = %e\n", gcg_solver->compW_cg_auto_shift, gcg_solver->compW_cg_shift, gcg_solver->sigma);
-#endif
+#endif // LOG_TRACE
     assert(gcg_solver->compW_cg_auto_shift == 0 || gcg_solver->user_defined_multi_linear_solver == 0);
 
     /* initialize */
@@ -836,7 +849,9 @@ static void ComputeW(void **V, void *A, void *B,
         end[0] = offset[idx * 2 + 2]; // 未收敛区间的结束位置
         start[1] = offset[1] + block_size; // 第一个未收敛区间的起始位置
         end[1] = start[1] + length; // 第一个未收敛区间的起始位置 + length
+#if LOG_TRACE
         ops_gcg->Printf("    V[%d, %d), ritz_vec[%d, %d)\n",start[0],end[0],start[1],end[1]);
+#endif // LOG_TRACE
         // 对V中未收敛的列向量(在computeX中已被赋值为ritz_vec向量内容) * B, 将结果存入b(ritz_vec)中
         // 存入到ritz_vec中未收敛的起始位置(后续有些位置是收敛的，这样写有问题： 按区间求不是最前面的先收敛)
         // todo: 要把收敛的特征向量放在最前面
@@ -1032,13 +1047,11 @@ static void ComputeW(void **V, void *A, void *B,
         MatDestroy(&chol_AbB);
     }
 
-#if 1
     /* 20210628 recover A */
     if (sigma != 0.0 && B != NULL && ops_gcg->MatAxpby != NULL) {
         // 恢复矩阵A /* A = sigma B + A */
         ops_gcg->MatAxpby(sigma, B, 1.0, A, ops_gcg);
     }
-#endif
 
 #if 0
 	ops_gcg->Printf("=====b===========\n");
@@ -1379,7 +1392,9 @@ static void ComputeW12(void **V, void *A, void *B,
  */
 static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_evec, double tol,
                                 int nevConv, double *ss_diag, void *A, void **V) {
+#if LOG_TRACE
     ops_gcg->Printf("----ComputeRayleighRitz\n");
+#endif // LOG_TRACE
 #if TIME_GCG
     time_gcg.compRR_time -= ops_gcg->GetWtime();
 #endif
@@ -1418,8 +1433,10 @@ static void ComputeRayleighRitz(double *ss_matA, double *ss_eval, double *ss_eve
 
     sizeN = endN - startN;
     sizeC = nevConv;
+#if LOG_TRACE
     ops_gcg->Printf("    sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
         sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
+#endif // LOG_TRACE
     /* 已收敛部分C不再考虑，更新 ss_mat ss_evec 起始地址*/
     // 由于sizeC大小变更，ss_matA与ss_evec均向后平移相应位置
     ss_matA = ss_diag + (sizeV - sizeC);
@@ -1907,15 +1924,9 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     time_gcg.linsol_time = 0.0;
 #endif
 
-#if DEBUG
-    ops_gcg->Printf("initial X\n");
-#endif
     /* 对 X 赋随机初值且 B-正交归一化 */
     InitializeX(V, ritz_vec, B, nevGiven);
 
-#if DEBUG
-    int row, col;
-#endif
     ComputeRayleighRitz(ss_matA, ss_eval, ss_evec,
                         gcg_solver->compRR_tol, 0, ss_diag, A, V);
 
@@ -1944,7 +1955,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     // 不进行收敛性判断的目的是什么？假设前几次均不会收敛，不进行收敛性判断是否可以提高效率？
     numIter = 0; /* numIter 取负值时, 小于等于零的迭代不进行判断收敛性 */
 #if PRINT_FIRST_UNCONV
-    ops_gcg->Printf("------------------------------\n");
+    ops_gcg->Printf("------------start loop------------------\n");
     ops_gcg->Printf("numIter\tnevConv\n", numIter, *nevConv);
 #endif
     int range_nevConv = 0;
@@ -1952,7 +1963,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
         fflush(stdout);
 
 #if 1
-        ops_gcg->Printf("numIter = %d, sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
+        ops_gcg->Printf("\nIter%d begin:  sizeC = %d, sizeN = %d, sizeX = %d, sizeP = %d, sizeW = %d, sizeV = %d\n",
                         numIter, sizeC, sizeN, sizeX, sizeP, sizeW, sizeV);
 #endif
         if (numIter <= 0) {
@@ -1965,7 +1976,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
 
         *nevConv = CheckConvergence(A, B, ss_eval, ritz_vec, ss_evec, V, numCheck, tol, offsetW, &range_nevConv);
 #if PRINT_FIRST_UNCONV
-        ops_gcg->Printf("numIter: %d\t *nevConv: %d, nev: %d, nev0: %d \n", numIter, *nevConv, nev, nev0);
+        ops_gcg->Printf("CheckResult: numIter: %d\t *nevConv: %d, nev: %d, nev0: %d \n", numIter, *nevConv, nev, nev0);
 #endif
         if (range_nevConv >= nev0) { // 当前收敛个数大于用户希望收敛的个数则退出循环，结束算法
             break;
@@ -2067,13 +2078,6 @@ static void GCG(void *A, void *B, double *eval, void **evec,
         /* 计算完 PtAP 部分后再更新 sizeV */
         ComputeRayleighRitz(ss_matA, ss_eval, ss_evec,
                             gcg_solver->compRR_tol, *nevConv, ss_diag, A, V); /* update sizeC startN endN sizeN */
-        static int zzy_count = 0;
-        ++zzy_count;
-        if (zzy_count == 40) {
-            for (idx = 0; idx < sizeV; ++idx) {
-                printf("zzy ss_eval[%d] = %e\n", idx, ss_eval[idx]);
-            }
-        }
 
         for (idx = sizeV; idx < (nevMax + 2 * block_size); ++idx) {
             ss_eval[idx] = ss_eval[sizeV - 1];
@@ -2100,7 +2104,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
     ops_gcg->Printf("|Total Time = %.2f, Avg Time per Iteration = %.2f\n",
                     time_gcg.time_total, time_gcg.time_total / gcg_solver->numIter);
     ops_gcg->Printf("|checkconv   compP   compRR   (rr_matW   dsyexv)   compRV   compW   (linsol)   compX   initX\n");
-    ops_gcg->Printf("|%.2f\t%.2f\t%.2f\t(%.2f\t%.2f)\t%.2f\t%.2f\t(%.2f)\t%.2f\t%.2f\n",
+    ops_gcg->Printf("|%8.2f %8.2f %8.2f (%8.2f %8.2f) %8.2f %8.2f (%8.2f) %8.2f %8.2f\n",
                     time_gcg.checkconv_time,
                     time_gcg.compP_time,
                     time_gcg.compRR_time,
@@ -2111,7 +2115,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
                     time_gcg.linsol_time,
                     time_gcg.compX_time,
                     time_gcg.initX_time);
-    ops_gcg->Printf("|%.2f%%\t%.2f%%\t%.2f%%\t(%.2f%%\t%.2f%%)\t%.2f%%\t%.2f%%\t(%.2f%%)\t%.2f%%\t%.2f%%\n",
+    ops_gcg->Printf("|%8.2f%% %8.2f%% %8.2f%% (%6.2f%% %6.2f%%) %6.2f%%\t%.2f%%\t(%.2f%%)\t%.2f%%\t%.2f%%\n",
                     time_gcg.checkconv_time / time_gcg.time_total * 100,
                     time_gcg.compP_time / time_gcg.time_total * 100,
                     time_gcg.compRR_time / time_gcg.time_total * 100,
@@ -2146,6 +2150,7 @@ void EigenSolverSetup_GCG(
     int user_defined_multi_linear_solver,
     void **mv_ws[4], double *dbl_ws, int *int_ws,
     struct OPS_ *ops) {
+    ops->Printf("----EigenSolverSetup_GCG\n");
     static GCGSolver gcg_solver_static = {
         .nevMax = 3,
         .multiMax = 2,
@@ -2240,9 +2245,8 @@ void EigenSolverCreateWorkspace_GCG(
     /* 这里 nevInit 的设定要与 EigenSolverSetup_GCG 中 nevInit 一致 */
     sizeV = nevInit + 2 * block_size;
     int length_dbl_ws = 2 * sizeV * sizeV + 10 * sizeV + (nevMax + 2 * block_size) + (nevMax)*block_size;
-    ops->Printf("    length_dbl_ws = %d\n", length_dbl_ws);
     int length_int_ws = 6 * sizeV + 2 * (block_size + 3);
-    ops->Printf("    length_int_ws = %d\n", length_int_ws);
+    ops->Printf("    length_dbl_ws = %d, length_int_ws = %d\n", length_dbl_ws, length_int_ws);
     if (dbl_ws != NULL) {
         *dbl_ws = malloc(length_dbl_ws * sizeof(double));
         memset(*dbl_ws, 0, length_dbl_ws * sizeof(double));
@@ -2282,6 +2286,7 @@ void EigenSolverSetParameters_GCG(
     int compW_cg_max_iter, double compW_cg_rate, double compW_cg_tol, const char *compW_cg_tol_type, int compW_cg_auto_shift,
     int compRR_min_num, double compRR_min_gap, double compRR_tol,
     struct OPS_ *ops) {
+    ops->Printf("----EigenSolverSetParameters_GCG\n");
     struct GCGSolver_ *gcg_solver = (GCGSolver *)ops->eigen_solver_workspace;
     if (check_conv_max_num > 0)
         gcg_solver->check_conv_max_num = check_conv_max_num;
