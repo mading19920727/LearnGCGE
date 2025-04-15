@@ -125,27 +125,9 @@ int main(int argc, char *argv[])
 
     gcgeparam.shift = 0;
     gcgeparam.nevConv = gcgeparam.extMethod.extractOrder;
-    if (gcgeparam.nevConv <= 50) {
-        gcgeparam.block_size = gcgeparam.nevConv;
-        gcgeparam.nevInit = 2 * gcgeparam.nevConv;
-        gcgeparam.nevMax = 2 * gcgeparam.nevConv;
-    } else if (gcgeparam.nevConv <= 200) {
-        gcgeparam.block_size = gcgeparam.nevConv / 5;
-        gcgeparam.nevInit = gcgeparam.nevConv;
-        gcgeparam.nevMax = gcgeparam.nevInit + gcgeparam.nevConv;
-    } else if (gcgeparam.nevConv < 800) {
-        gcgeparam.block_size = gcgeparam.nevConv / 8;
-        gcgeparam.nevInit = 6 * gcgeparam.block_size;
-        gcgeparam.nevMax = gcgeparam.nevInit + gcgeparam.nevConv;
-    } else if (gcgeparam.nevConv == 800) {
-        gcgeparam.block_size = 80;
-        gcgeparam.nevInit = 350;
-        gcgeparam.nevMax = 1350;
-    } else {
-        gcgeparam.block_size = 200;
-        gcgeparam.nevInit = 3 * gcgeparam.block_size;
-        gcgeparam.nevMax = gcgeparam.nevConv + gcgeparam.nevInit;
-    }
+    gcgeparam.block_size = gcgeparam.nevConv;
+    gcgeparam.nevInit = 1.2 * gcgeparam.nevConv;
+    gcgeparam.nevMax = 2 * gcgeparam.nevConv;
 
     // 4、设置输出对象
     // 当前设置返回收敛的特征值和特征向量

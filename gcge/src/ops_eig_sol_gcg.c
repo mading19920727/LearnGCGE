@@ -13,7 +13,7 @@
 #define TIME_GCG 1
 #define PRINT_FIRST_UNCONV 1
 // LOG_TRACE: 用于跟踪软件运行情况的宏
-#define LOG_TRACE 0
+#define LOG_TRACE 1
 
 typedef struct TimeGCG_ {
     double initX_time;
@@ -458,21 +458,16 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     // 拷贝 data
     for (int i = 0; i < numCheck; ++i) {
         tempData[i] = ss_eval[startN + resortedIndex[i]];
-    }
-
-    for (int i = 0; i < numCheck; ++i) {
         tempDatainner_prod[i] = inner_prod[resortedIndex[i]];
-    }
-
-    // 拷贝 matrix 的每一列
-    for (int i = 0; i < numCheck; ++i) {
-        for (int k = 0; k < sizeV - sizeC; ++k) {
+        for (int k = 0; k < sizeV - sizeC; ++k) { // 拷贝 matrix 的每一列
             tempMatrix[k + i * (sizeV - sizeC)] = ss_evec[k + resortedIndex[i] * (sizeV - sizeC)];
         }
     }
+
     // 收敛性检查完成，恢复ss_eval地址
     ss_eval -= closeToTargetEvalIndex;
     ss_evec -= closeToTargetEvalIndex * (sizeV - sizeC);
+
     // 将前面会被覆盖的数据存入后面
     memcpy(ss_eval + startN + numCheck, ss_eval + startN, closeToTargetEvalIndex * sizeof(double));
     memcpy(ss_evec + (sizeV - sizeC) * numCheck, ss_evec, closeToTargetEvalIndex * (sizeV - sizeC) * sizeof(double));
@@ -481,6 +476,7 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     memcpy(ss_eval + startN, tempData, numCheck * sizeof(double));
     memcpy(inner_prod, tempDatainner_prod, numCheck * sizeof(double));
     memcpy(ss_evec, tempMatrix, (sizeV - sizeC) * numCheck * sizeof(double));
+
     // 释放临时空间
     free(tempData);
     free(tempDatainner_prod);
@@ -610,6 +606,7 @@ static void ComputeP(void **V, double *ss_evec, int *offset) {
     ops_gcg->Printf("    offset[0] = %d, sizeP = %d\n", offset[0], sizeP);
 #endif // LOG_TRACE
     block_size = 0;
+    // 将未收敛的列拷贝到P所在的位置
     for (idx = 0; idx < offset[0]; ++idx) {
         length = (sizeV - sizeC) * (offset[idx * 2 + 2] - offset[idx * 2 + 1]);
         source = ss_evec + (sizeV - sizeC) * (offset[idx * 2 + 1] - sizeC);
@@ -1650,10 +1647,12 @@ static void GCG(void *A, void *B, double *eval, void **evec,
         if (numIter <= 0) {
             numCheck = 0;
         } else {
+            // 方案一: 检测个数永远为当前未收敛的个数:不好，在最后几次迭代时，检查的太少了，不容易遇到待收敛的那个
+            // numCheck = nev0 - range_nevConv;
             numCheck = (endX - startN);
             // numCheck = (startN + sizeN < endX) ? (sizeN) : (endX - startN);
         }
-        numCheck = numCheck < gcg_solver->check_conv_max_num ? numCheck : gcg_solver->check_conv_max_num;
+        // numCheck = numCheck < gcg_solver->check_conv_max_num ? numCheck : gcg_solver->check_conv_max_num;
 
         *nevConv = CheckConvergence(A, B, ss_eval, ritz_vec, ss_evec, V, numCheck, tol, offsetW, &range_nevConv);
 #if PRINT_FIRST_UNCONV
@@ -1662,6 +1661,12 @@ static void GCG(void *A, void *B, double *eval, void **evec,
         if (range_nevConv >= nev0) { // 当前收敛个数大于用户希望收敛的个数则退出循环，结束算法
             break;
         }
+        // 1、更新sizeX、endX的维度：
+        // 因为：1）初始化时，sizeX为区间特征值个数；2）要求 sizeX - startN 要永远等于未收敛的区间特征值个数
+        // 所以：当收敛的特征值不在(a,b)区间时，SizeX要扩大，包含已经收敛的非区间特征值数量：
+        //      即 sizeX = sizeX + 当前迭代步收敛的非区间特征值个数 = sizeC + 未收敛的区间特征值个数
+
+        // sizeX = sizeC + 
         // 判断新收敛的特征对个数是否大于2 * block_size(即sizeP + sizeW)
         if (*nevConv >= nev) {
                 /* Update sizeX */
@@ -1681,7 +1686,7 @@ static void GCG(void *A, void *B, double *eval, void **evec,
                 // 即将收敛的特征向量写入到ritz_vec中
                 // 这里的ss_evec[startN, endW]是指当前批次收敛的子空间特征向量，通过V还原到原空间
                 // 这里end[0] - start[0] = sizeV - sizeC; end[1] - start[1] = sizeP + sizeW; 列数不匹配
-                // 该函数支持列数不匹配，列数不同时，仅将V[startN, endW] * ss_evec[startN, endW]的前end[1] - start[1]列
+                // 该函数支持列数不匹配，列数不同时，仅将V[startN, endW] * ss_evec[endX, endW]的前end[1] - start[1]列
                 // 填充到ritz_vec[endX, sizeX]中，即每次收敛end[1] - start[1]列
                 ops_gcg->MultiVecLinearComb(V, ritz_vec, 0,
                                             start, end, coef, sizeV - sizeC, NULL, 0, ops_gcg);
