@@ -15,7 +15,7 @@
 
 #define TIME_BPCG 0
 #define TIME_BAMG 0
-#define LINEAR_SOLVER_METHOD 0    //computeW中Ax=B求解方式 O:blockPCG, 1:petsc KSPMINRES, 2:petsc CholeskySolve
+#define LINEAR_SOLVER_METHOD 2    //computeW中Ax=B求解方式 O:blockPCG, 1:petsc KSPMINRES, 2:petsc CholeskySolve
 
 typedef struct TimeBlockPCG_ {
     double allreduce_time;
@@ -585,24 +585,11 @@ void PetscCholeskySolve(void *mat, void **mv_b, void **mv_x, int *start_bx, int 
     for (PetscInt i = 0; i < length; i++) {     // todo 多次调用MatSolve(), 可改为MatMatSolve() ?
         BVGetColumn((BV)mv_b, start_bx[0] + i, &ksp_b);          
         BVGetColumn((BV)mv_x, start_bx[1] + i, &ksp_x);         // 获取V的第start_bx[1] + i列写指针​​，允许直接修改该列数据
-        // printf("zzy before\n");
-        // VecView(ksp_x, PETSC_VIEWER_STDOUT_WORLD);
         PetscErrorCode err = MatSolve(chol_AbB, ksp_b, ksp_x);  // 基于LU分解的Ax=b求解
-        //             // 以 MATLAB 格式写入文件
-        //             PetscViewer viewer;
-        //             PetscViewerASCIIOpen(PETSC_COMM_WORLD, "chol_AbB.m", &viewer);
-        //             PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_MATLAB);
-        //             MatView(A, viewer);
-        //             PetscViewerPopFormat(viewer);
-        //             PetscViewerDestroy(&viewer);
         if (err) {
             printf("MatSolve error: %d\n", err);
             exit(1);
         }
-        // printf("zzy after\n");
-        // VecView(ksp_x, PETSC_VIEWER_STDOUT_WORLD);
-        // exit(1);
-
         BVRestoreColumn((BV)mv_b, start_bx[0] + i, &ksp_b);   // 释放指针ksp_b
         BVRestoreColumn((BV)mv_x, start_bx[1] + i, &ksp_x);   // 释放指针ksp_x     
     }
