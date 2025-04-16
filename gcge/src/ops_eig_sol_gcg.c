@@ -45,7 +45,7 @@ static void **mv_ws[3];
 static double *dbl_ws; // 表示分配完ss_eval, ss_evec, ss_diag等数据占用最大空间后剩余的double类型工作空间
 static int *int_ws;
 static struct OPS_ *ops_gcg; // 上下文空间
-static struct GCGSolver_ *gcg_solver;
+struct GCGSolver_ *gcg_solver;
 
 // 临时定义区间求解特征值的全局变量
 static int closeToTargetEvalIndex = 0; // 记录最接近targetValue的特征值在ss_eval中相对sizeC的偏移量, 从0开始
@@ -508,6 +508,9 @@ static int CheckConvergence(void *A, void *B, double *ss_eval, void **ritz_vec, 
     
     if (!isinf(minVal)) { // 如果找到符合条件的值
         gcg_solver->compW_cg_shift = minVal;
+        gcg_solver->shiftChangedFlag = 1; // 标记shift值发生了变化
+    } else {
+        gcg_solver->shiftChangedFlag = 0; // 标记shift值未发生变化
     }
     // ############################################ 计算multishift值用于computeW  end ##########################################
 
