@@ -56,6 +56,22 @@ make
     echo 'export LD_LIBRARY_PATH=$HOME/deps/mpich-4.2.3/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
     source ~/.bashrc
     ```
+- 下载编译安装 petsc-3.22.3支持mumps(串行版本)
+    ```bash
+    # 下载
+    wget https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-3.22.3.tar.gz
+    tar -xzf petsc-3.22.3.tar.gz
+    # 环境变量
+    vim ~/.bashrc
+    export PETSC_DIR=/home/ma/install/petsc-3.22.3      # 安装包的解压路径
+    export PETSC_ARCH=arch-linux-c-opt                  # ${PETSC_DIR/PETSC_ARCH}是petsc的库包安装路径
+    source ~/.bashrc                                    # 不设置也可以
+    # petsc支持mumps设置参考 https://petsc.org/release/manualpages/Mat/MATSOLVERMUMPS/
+    # 编译安装  
+    cd petsc-3.22.3
+    ./configure --with-mpiexec=/usr/local/bin/mpiexec --with-shared-libraries=0 --with-openmp=1 --with-mpi=1 --with-blas-lib=/opt/OpenBLAS/lib/libopenblas.a --with-lapack-lib=/opt/OpenBLAS/lib/libopenblas.a --download-mumps --download-scalapack --with-debugging=0
+    后续根据提示 make 和 check
+    ```
 
 ##### 2.2 编译
 ```bash
