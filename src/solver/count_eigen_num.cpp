@@ -7,6 +7,7 @@
 #include "count_eigen_num.h"
 
 GcgeErrCode CountEigenNum::countEigenNum(void *A, void *B, double a, double b, int &numEigen) {
+    printf("----countEigenNum\n");
     if (a > b) {    // [a, b]区间,应该 a =< b
         return GCGE_ERR_INPUT;  
     }
@@ -29,12 +30,16 @@ GcgeErrCode CountEigenNum::countEigenNum(void *A, void *B, double a, double b, i
     MatFactorInfoInitialize(&info);           
     MatGetFactor(A_aB, MATSOLVERMUMPS, MAT_FACTOR_CHOLESKY, &chol_AaB); // mumps的cholesky分解
               
-    MatGetOrdering(A_aB, MATORDERINGND, &row, &col);        // 排序
+    MatGetOrdering(A_aB, MATORDERINGEXTERNAL, &row, &col);        // 排序
     MatCholeskyFactorSymbolic(chol_AaB, A_aB, row, &info);  // 符号分析
     MatCholeskyFactorNumeric(chol_AaB, A_aB, &info);        // 数值分解
 
     // 计算惯性指数
-    MatGetInertia(chol_AaB, &numEigen, &nzero, &npos); 
+    MatGetInertia(chol_AaB, &numEigen, &nzero, &npos);
+    MatDestroy(&A_aB);
+    ISDestroy(&row);
+    ISDestroy(&col);
+    MatDestroy(&chol_AaB);
     // --------------------------------------------------------------------------------------
 
     /*计算cholesky(A - b * B),并获得惯性数值*/
@@ -44,7 +49,8 @@ GcgeErrCode CountEigenNum::countEigenNum(void *A, void *B, double a, double b, i
     MatAYPX(A_bB, -b, (Mat)A, DIFFERENT_NONZERO_PATTERN);   // 因为MatAYPX(Y, a, X, ..)功能为 Y = a * Y + X，不能复用A_aB   
 
     Mat chol_AbB;   // cholesky分解后的矩阵
-    MatGetFactor(A_bB, MATSOLVERMUMPS, MAT_FACTOR_CHOLESKY, &chol_AbB); 
+    MatGetFactor(A_bB, MATSOLVERMUMPS, MAT_FACTOR_CHOLESKY, &chol_AbB);
+    MatGetOrdering(A_bB, MATORDERINGEXTERNAL, &row, &col);        // 排序
     MatCholeskyFactorSymbolic(chol_AbB, A_bB, row, &info);  // 复用了info
     MatCholeskyFactorNumeric(chol_AbB, A_bB, &info);
 
@@ -54,13 +60,11 @@ GcgeErrCode CountEigenNum::countEigenNum(void *A, void *B, double a, double b, i
     // 区间内特征值个数
     int tempN = numEigen;
     numEigen = nneg - numEigen;
-    PetscPrintf(PETSC_COMM_WORLD, "The number of eigenvalues in [a, b] is: %d = %d - %d\n", numEigen, nneg, tempN);
+    PetscPrintf(PETSC_COMM_WORLD, "    The number of eigenvalues in [a, b] is: %d = %d - %d\n", numEigen, nneg, tempN);
 
+    MatDestroy(&A_bB);
     ISDestroy(&row);
     ISDestroy(&col);
-    MatDestroy(&A_aB);
-    MatDestroy(&A_bB);
-    MatDestroy(&chol_AaB);
     MatDestroy(&chol_AbB);
 
     return GCGE_SUCCESS;
