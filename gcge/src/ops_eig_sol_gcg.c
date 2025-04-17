@@ -1667,6 +1667,25 @@ static void GCG(void *A, void *B, double *eval, void **evec,
         ops_gcg->Printf("CheckResult: numIter: %d\t *nevConv: %d, nev: %d, nev0: %d \n", numIter, *nevConv, nev, nev0);
 #endif
         if (range_nevConv >= nev0) { // 当前收敛个数大于用户希望收敛的个数则退出循环，结束算法
+            // ops_gcg->Printf("zzy eval:\n");
+            // for (int i = 0; i < *nevConv ; ++i) {
+            //     ops_gcg->Printf("%20.12f\n", ss_eval[i]);
+            // }
+            // {
+            //     // 将BV转换成matlab矩阵的代码
+            //     Mat         A;
+            //     PetscViewer viewer;
+            //     // 假设 bv 已经初始化并填充数据
+            //     BVCreateMat(ritz_vec, &A);
+            //     // 以 MATLAB 格式写入文件
+            //     PetscViewerASCIIOpen(PETSC_COMM_WORLD, "ritz_vec_output.m", &viewer);
+            //     PetscViewerPushFormat(viewer, PETSC_VIEWER_ASCII_MATLAB);
+            //     MatView(A, viewer);
+            //     PetscViewerPopFormat(viewer);
+            //     PetscViewerDestroy(&viewer);
+            //     // 释放资源
+            //     MatDestroy(&A);
+            // }
             break;
         }
         // 1、更新sizeX、endX的维度：

@@ -12,7 +12,7 @@
 #define PETSC_DEPRECATED_MACRO_BASE_(why) _Pragma(#why)
 #define PETSC_DEPRECATED_OBJECT_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
 #define PETSC_DEPRECATED_TYPEDEF_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
-#define PETSC_DIR "/home/zzy/deps/petsc-3.22.3"
+#define PETSC_DIR "/home/zzy/deps/petsc_mumps-3.22.3"
 #define PETSC_DIR_SEPARATOR '/'
 #define PETSC_FORTRAN_CHARLEN_T size_t
 #define PETSC_FORTRAN_TYPE_INITIALIZE  = -2
@@ -97,13 +97,14 @@
 #define PETSC_HAVE_MPI_REDUCE_SCATTER_BLOCK 1
 #define PETSC_HAVE_MPI_RGET 1
 #define PETSC_HAVE_MPI_WIN_CREATE 1
+#define PETSC_HAVE_MUMPS 1
 #define PETSC_HAVE_NANOSLEEP 1
 #define PETSC_HAVE_NETDB_H 1
 #define PETSC_HAVE_NETINET_IN_H 1
 #define PETSC_HAVE_NO_FINITE_MATH_ONLY 1
 #define PETSC_HAVE_OPENBLAS_SET_NUM_THREADS 1
 #define PETSC_HAVE_OPENMP 1
-#define PETSC_HAVE_PACKAGES ":blaslapack:mathlib:mpi:openmp:openmp:pthread:regex:"
+#define PETSC_HAVE_PACKAGES ":blaslapack:mathlib:mpi:mumps:openmp:openmp:pthread:regex:scalapack:"
 #define PETSC_HAVE_POPEN 1
 #define PETSC_HAVE_POSIX_MEMALIGN 1
 #define PETSC_HAVE_PTHREAD 1
@@ -119,6 +120,7 @@
 #define PETSC_HAVE_RTLD_LAZY 1
 #define PETSC_HAVE_RTLD_LOCAL 1
 #define PETSC_HAVE_RTLD_NOW 1
+#define PETSC_HAVE_SCALAPACK 1
 #define PETSC_HAVE_SETJMP_H 1
 #define PETSC_HAVE_SHMGET 1
 #define PETSC_HAVE_SLEEP 1
@@ -155,10 +157,10 @@
 #define PETSC_IS_COLORING_VALUE_TYPE short
 #define PETSC_IS_COLORING_VALUE_TYPE_F integer2
 #define PETSC_LEVEL1_DCACHE_LINESIZE 64
-#define PETSC_LIB_DIR "/home/zzy/deps/petsc-3.22.3/lib"
+#define PETSC_LIB_DIR "/home/zzy/deps/petsc_mumps-3.22.3/lib"
 #define PETSC_MAX_PATH_LEN 4096
 #define PETSC_MEMALIGN 16
-#define PETSC_MPICC_SHOW "gcc -I/usr/local/include -L/usr/local/lib -Wl,-rpath -Wl,/usr/local/lib -Wl,--enable-new-dtags -lmpi"
+#define PETSC_MPICC_SHOW "gcc -I/home/zzy/deps/mpich-4.2.3/include -L/home/zzy/deps/mpich-4.2.3/lib -Wl,-rpath -Wl,/home/zzy/deps/mpich-4.2.3/lib -Wl,--enable-new-dtags -lmpi"
 #define PETSC_MPIU_IS_COLORING_VALUE_TYPE MPI_UNSIGNED_SHORT
 #define PETSC_OMAKE "/usr/bin/gmake --no-print-directory"
 #define PETSC_PKG_MPICH_NUMVERSION 40203300
