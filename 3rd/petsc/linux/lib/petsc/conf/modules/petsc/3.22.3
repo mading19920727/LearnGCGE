@@ -1,0 +1,15 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr "This module sets the path and environment variables for petsc-3.22.3"
+    puts stderr "     see https://petsc.org/ for more information      "
+    puts stderr ""
+}
+module-whatis "PETSc - Portable, Extensible Toolkit for Scientific Computation"
+
+set petsc_dir   "/home/zzy/deps/petsc_mumps_tutorial-3.22.3"
+set petsc_arch  ""
+
+setenv PETSC_ARCH "$petsc_arch"
+setenv PETSC_DIR "$petsc_dir"
+prepend-path PATH "/home/zzy/deps/petsc_mumps_tutorial-3.22.3/bin"

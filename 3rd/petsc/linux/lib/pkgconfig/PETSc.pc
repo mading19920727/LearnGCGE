@@ -1,0 +1,19 @@
+prefix=/home/zzy/deps/petsc_mumps_tutorial-3.22.3
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${prefix}/lib
+ccompiler=mpicc
+cflags_extra=-fPIC -Wall -Wwrite-strings -Wno-unknown-pragmas -Wno-lto-type-mismatch -Wno-stringop-overflow -fstack-protector -fvisibility=hidden -Wall -Wwrite-strings -Wno-unknown-pragmas -Wno-lto-type-mismatch -Wno-stringop-overflow -fstack-protector -fvisibility=hidden -O  -fopenmp
+cflags_dep=-MMD -MP
+ldflag_rpath=-Wl,-rpath,
+cxxcompiler=mpicxx
+cxxflags_extra=-Wall -Wwrite-strings -Wno-strict-aliasing -Wno-unknown-pragmas -Wno-lto-type-mismatch -Wno-psabi -fstack-protector -fvisibility=hidden -Wall -Wwrite-strings -Wno-strict-aliasing -Wno-unknown-pragmas -Wno-lto-type-mismatch -Wno-psabi -fstack-protector -fvisibility=hidden -O  -std=gnu++20  -fopenmp
+fcompiler=mpif90
+fflags_extra=-Wall -ffree-line-length-none -ffree-line-length-0 -Wno-lto-type-mismatch -Wno-unused-dummy-argument -Wall -ffree-line-length-none -ffree-line-length-0 -Wno-lto-type-mismatch -Wno-unused-dummy-argument -O   -fopenmp
+
+Name: PETSc
+Description: Library to solve ODEs and algebraic equations
+Version: 3.22.3
+Cflags:  -fopenmp -I${includedir}
+Libs: -L${libdir} -lpetsc
+Libs.private: -L/home/zzy/deps/petsc_mumps_tutorial-3.22.3/lib -L/home/zzy/deps/mpich-4.2.3/lib -L/usr/lib/gcc/x86_64-linux-gnu/13 -ldmumps -lmumps_common -lpord -lpthread -lscalapack -lopenblas -lptesmumps -lptscotchparmetisv3 -lptscotch -lptscotcherr -lesmumps -lscotch -lscotcherr -lparmetis -lmetis -lm -lhwloc -lmpifort -lmpi -lgfortran -lm -lgfortran -lm -lgcc_s -lquadmath -lstdc++ -lrt -lquadmath

@@ -12,7 +12,7 @@
 #define PETSC_DEPRECATED_MACRO_BASE_(why) _Pragma(#why)
 #define PETSC_DEPRECATED_OBJECT_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
 #define PETSC_DEPRECATED_TYPEDEF_BASE(string_literal_why) __attribute__((deprecated(string_literal_why)))
-#define PETSC_DIR "/home/zzy/deps/petsc_mumps-3.22.3"
+#define PETSC_DIR "/home/zzy/deps/petsc_mumps_tutorial-3.22.3"
 #define PETSC_DIR_SEPARATOR '/'
 #define PETSC_FORTRAN_CHARLEN_T size_t
 #define PETSC_FORTRAN_TYPE_INITIALIZE  = -2
@@ -21,6 +21,7 @@
 #define PETSC_HAVE_ACCESS 1
 #define PETSC_HAVE_ATOLL 1
 #define PETSC_HAVE_ATTRIBUTEALIGNED 1
+#define PETSC_HAVE_BISON 1
 #define PETSC_HAVE_BUILTIN_EXPECT 1
 #define PETSC_HAVE_BZERO 1
 #define PETSC_HAVE_C99_COMPLEX 1
@@ -58,6 +59,7 @@
 #define PETSC_HAVE_GETHOSTNAME 1
 #define PETSC_HAVE_GETPAGESIZE 1
 #define PETSC_HAVE_GETRUSAGE 1
+#define PETSC_HAVE_HWLOC 1
 #define PETSC_HAVE_IMMINTRIN_H 1
 #define PETSC_HAVE_INTTYPES_H 1
 #define PETSC_HAVE_ISINF 1
@@ -69,6 +71,7 @@
 #define PETSC_HAVE_LSEEK 1
 #define PETSC_HAVE_MALLOC_H 1
 #define PETSC_HAVE_MEMMOVE 1
+#define PETSC_HAVE_METIS 1
 #define PETSC_HAVE_MKSTEMP 1
 #define PETSC_HAVE_MPICH 1
 #define PETSC_HAVE_MPIEXEC_ENVIRONMENTAL_VARIABLE MPIR_CVAR_CH3
@@ -104,11 +107,15 @@
 #define PETSC_HAVE_NO_FINITE_MATH_ONLY 1
 #define PETSC_HAVE_OPENBLAS_SET_NUM_THREADS 1
 #define PETSC_HAVE_OPENMP 1
-#define PETSC_HAVE_PACKAGES ":blaslapack:mathlib:mpi:mumps:openmp:openmp:pthread:regex:scalapack:"
+#define PETSC_HAVE_OPENMP_SUPPORT 1
+#define PETSC_HAVE_PACKAGES ":bison:blaslapack:hwloc:mathlib:metis:mpi:mumps:openmp:openmp:parmetis:pthread:ptscotch:regex:scalapack:"
+#define PETSC_HAVE_PARMETIS 1
 #define PETSC_HAVE_POPEN 1
 #define PETSC_HAVE_POSIX_MEMALIGN 1
 #define PETSC_HAVE_PTHREAD 1
+#define PETSC_HAVE_PTHREAD_BARRIER_INIT 1
 #define PETSC_HAVE_PTHREAD_MUTEX 1
+#define PETSC_HAVE_PTSCOTCH 1
 #define PETSC_HAVE_PWD_H 1
 #define PETSC_HAVE_RAND 1
 #define PETSC_HAVE_READLINK 1
@@ -121,6 +128,7 @@
 #define PETSC_HAVE_RTLD_LOCAL 1
 #define PETSC_HAVE_RTLD_NOW 1
 #define PETSC_HAVE_SCALAPACK 1
+#define PETSC_HAVE_SCOTCH_PARMETIS_V3_NODEND 1
 #define PETSC_HAVE_SETJMP_H 1
 #define PETSC_HAVE_SHMGET 1
 #define PETSC_HAVE_SLEEP 1
@@ -157,7 +165,7 @@
 #define PETSC_IS_COLORING_VALUE_TYPE short
 #define PETSC_IS_COLORING_VALUE_TYPE_F integer2
 #define PETSC_LEVEL1_DCACHE_LINESIZE 64
-#define PETSC_LIB_DIR "/home/zzy/deps/petsc_mumps-3.22.3/lib"
+#define PETSC_LIB_DIR "/home/zzy/deps/petsc_mumps_tutorial-3.22.3/lib"
 #define PETSC_MAX_PATH_LEN 4096
 #define PETSC_MEMALIGN 16
 #define PETSC_MPICC_SHOW "gcc -I/home/zzy/deps/mpich-4.2.3/include -L/home/zzy/deps/mpich-4.2.3/lib -Wl,-rpath -Wl,/home/zzy/deps/mpich-4.2.3/lib -Wl,--enable-new-dtags -lmpi"

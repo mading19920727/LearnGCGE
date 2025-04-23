@@ -1,0 +1,1 @@
+--prefix=/home/zzy/software/petsc-3.22.3/arch-linux-c-tutorial

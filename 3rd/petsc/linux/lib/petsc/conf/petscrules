@@ -1,0 +1,47 @@
+print_mesg_after_build: 
+	-@echo "========================================="
+	-@echo "Now to install the libraries do:"
+	-@echo "${MAKE_USER} PETSC_DIR=/home/zzy/deps/petsc_mumps_tutorial-3.22.3  install"
+	-@echo "========================================="
+
+libc: ${LIBNAME}(${OBJSC})
+
+libcxx: ${LIBNAME}(${OBJSCXX})
+
+libcu: ${LIBNAME}(${OBJSCU})
+
+libf: ${OBJSF}
+	-${AR} ${AR_FLAGS} ${LIBNAME} ${OBJSF}
+
+shared_arch: 
+
+amrex-build: 
+
+amrex-install: 
+
+mfem-build: 
+
+mfem-install: 
+
+slepc-build: 
+
+slepc-install: 
+
+bamg-build: 
+
+bamg-install: 
+
+hpddm-build: 
+
+hpddm-install: 
+
+libmesh-build: 
+
+libmesh-install: 
+
+petsc4py-build: 
+
+petsc4py-install: 
+
+petsc4pytest: 
+

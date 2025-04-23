@@ -38,6 +38,22 @@ target_link_libraries(GCGE PRIVATE
     dmumps              # petsc支持mumps，新增的库
     mumps_common
     pord
+    pthread
+    esmumps
+    ptesmumps
+    ptscotchparmetisv3
+    ptscotch
+    ptscotcherr
+    ptscotcherrexit
+    scotch
+    scotcherr
+    scotcherrexit
+    scotchmetisv3
+    scotchmetisv5
+    parmetis
+    metis
+    y
+    hwloc
     scalapack
     gfortran            # GNU Fortran 运行时库
     stdc++              # C++ 标准库

@@ -1,0 +1,9 @@
+prefix=/home/zzy/deps/petsc_mumps_tutorial-3.22.3
+libdir=/home/zzy/deps/petsc_mumps_tutorial-3.22.3/lib
+
+Name: scalapack
+Description: SCALAPACK reference implementation
+Version: 2.2.1
+URL: http://www.netlib.org/scalapack/
+Libs: -L/home/zzy/deps/petsc_mumps_tutorial-3.22.3/lib -lscalapack
+Requires: mpi lapack blas

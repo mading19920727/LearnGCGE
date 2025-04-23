@@ -1,0 +1,20 @@
+EXE      =
+LIB      = .a
+OBJ      = .o
+
+MAKE     = make
+AR       = /usr/bin/ar
+ARFLAGS  = cr
+CAT      = cat
+CCS      = mpicc
+CCP      = mpicc
+CCD      = mpicc
+CFLAGS   = -fPIC -Wno-lto-type-mismatch -Wno-stringop-overflow -Wno-lto-type-mismatch -Wno-stringop-overflow -O -Wno-implicit-int -Wno-int-conversion -Wno-implicit-function-declaration -Wno-deprecated-non-prototype -fno-common  -DCOMMON_PTHREAD -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict="restrict" -DINTSIZE32 -DSCOTCH_METIS_PREFIX
+LDFLAGS  = -lm -lrt
+CP       = /usr/bin/cp
+LN       = ln
+MKDIR    = /usr/bin/mkdir -p
+MV       = /usr/bin/mv
+RANLIB   = /usr/bin/ranlib
+FLEX     = /usr/bin/flex
+BISON    = /home/zzy/software/petsc-3.22.3/arch-linux-c-tutorial/bin/bison -y

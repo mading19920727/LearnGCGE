@@ -59,7 +59,7 @@ endif()
 add_library(scalapack STATIC IMPORTED)
 
 set_target_properties(scalapack PROPERTIES
-  INTERFACE_LINK_LIBRARIES "-Wl,-rpath,/home/zzy/workspace/LearnGCGE/3rd/ubuntu/lib -L/home/zzy/workspace/LearnGCGE/3rd/ubuntu/lib -lopenblas -Wl,-rpath,/home/zzy/workspace/LearnGCGE/3rd/ubuntu/lib -L/home/zzy/workspace/LearnGCGE/3rd/ubuntu/lib -lopenblas -lm -Wl,-rpath,/home/zzy/deps/mpich-4.2.3/lib -L/home/zzy/deps/mpich-4.2.3/lib -lmpifort -lmpi -lgfortran -lm -Wl,-rpath,/usr/lib/gcc/x86_64-linux-gnu/13 -L/usr/lib/gcc/x86_64-linux-gnu/13 -Wl,-rpath,/home/zzy/deps/mpich-4.2.3/lib -lgfortran -lm -lgcc_s -lquadmath;MPI::MPI_C"
+  INTERFACE_LINK_LIBRARIES "-lopenblas -lm -Wl,-rpath,/home/zzy/deps/mpich-4.2.3/lib -L/home/zzy/deps/mpich-4.2.3/lib -lmpifort -lmpi -lgfortran -lm -Wl,-rpath,/usr/lib/gcc/x86_64-linux-gnu/13 -L/usr/lib/gcc/x86_64-linux-gnu/13 -Wl,-rpath,/home/zzy/deps/mpich-4.2.3/lib -lgfortran -lm -lgcc_s -lquadmath;MPI::MPI_C"
 )
 
 if(CMAKE_VERSION VERSION_LESS 2.8.12)

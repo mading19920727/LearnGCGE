@@ -24,7 +24,7 @@
 
 // 此处线程数之后应该修改为从系统获取可用线程数
 #if OPS_USE_OMP
-#define OMP_NUM_THREADS 10
+#define OMP_NUM_THREADS 1
 #endif
 
 //#if OPS_USE_INTEL_MKL
